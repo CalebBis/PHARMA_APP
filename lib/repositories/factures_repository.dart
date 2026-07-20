@@ -9,6 +9,18 @@ class FactureWithDetails {
   FactureWithDetails(this.facture, this.vente);
 }
 
+class FactureLigne {
+  final Facture facture;
+  final VenteDetail detail;
+  final Produit produit;
+
+  FactureLigne({
+    required this.facture,
+    required this.detail,
+    required this.produit,
+  });
+}
+
 class FacturesRepository {
   final AppDatabase _db;
   final String _pharmacieId;
@@ -39,6 +51,28 @@ class FacturesRepository {
       return FactureWithDetails(
         row.readTable(_db.factures),
         row.readTable(_db.ventes),
+      );
+    }).toList();
+  }
+
+  Future<List<FactureLigne>> getFactureLignesByPeriod(DateTime start, DateTime end) async {
+    final query = _db.select(_db.factures).join([
+      innerJoin(_db.ventes, _db.ventes.id.equalsExp(_db.factures.venteId)),
+      innerJoin(_db.venteDetails, _db.venteDetails.venteId.equalsExp(_db.ventes.id)),
+      innerJoin(_db.produits, _db.produits.id.equalsExp(_db.venteDetails.produitId)),
+    ])..where(_db.factures.dateEmission.isBetweenValues(start, end) & 
+              _db.factures.pharmacieId.equals(_pharmacieId) & 
+              _db.factures.isDeleted.equals(false));
+    
+    // Trier par date d'émission descendante pour avoir les plus récentes en haut
+    query.orderBy([OrderingTerm(expression: _db.factures.dateEmission, mode: OrderingMode.desc)]);
+    
+    final results = await query.get();
+    return results.map((row) {
+      return FactureLigne(
+        facture: row.readTable(_db.factures),
+        detail: row.readTable(_db.venteDetails),
+        produit: row.readTable(_db.produits),
       );
     }).toList();
   }

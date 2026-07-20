@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../database/database.dart';
 import '../providers/panier_provider.dart';
 import '../utils/currency_formatter.dart';
+import '../repositories/factures_repository.dart';
 
 class PdfService {
   static Future<Uint8List> generateInvoicePdf({
@@ -106,6 +107,8 @@ class PdfService {
     required Map<String, dynamic> data,
     required List<Produit> stockBas,
     required List<Produit> expiringSoon,
+    required List<FactureLigne> factureLignes,
+    required String pharmacieNom,
   }) async {
     final pdf = pw.Document();
     
@@ -124,8 +127,8 @@ class PdfService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('PHARMACIE POS', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Rapport d\'Activité'),
+                    pw.Text(pharmacieNom, style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Rapports d\'Activité'),
                   ],
                 ),
                 pw.Column(
@@ -141,51 +144,71 @@ class PdfService {
             pw.SizedBox(height: 40),
             
             // Stats
-            pw.Text('1. Résumé des Ventes', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.green)),
-            pw.Divider(),
+            pw.Text('Résumé des Ventes', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.green)),
+            pw.Divider(color: PdfColors.green),
             pw.SizedBox(height: 10),
             pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                _buildReportStat('Transactions', '${data['nbTransactions']}'),
-                _buildReportStat('Total Ventes', CurrencyFormatter.format(data['totalVentes'] as double)),
-                _buildReportStat('Panier Moyen', CurrencyFormatter.format(data['panierMoyen'] as double)),
-                _buildReportStat('Bénéfice Total', CurrencyFormatter.format(data['beneficeTotal'] as double)),
+                _buildReportStatCard('Total Ventes', CurrencyFormatter.format(data['totalVentes'] as double), PdfColors.green),
+                _buildReportStatCard('Transactions', '${data['nbTransactions']}', PdfColors.blue),
+                _buildReportStatCard('Panier Moyen', CurrencyFormatter.format(data['panierMoyen'] as double), PdfColors.purple),
+                _buildReportStatCard('Bénéfice Total', CurrencyFormatter.format(data['beneficeTotal'] as double), PdfColors.orange),
               ],
             ),
             pw.SizedBox(height: 30),
 
-            // Stock
-            pw.Text('2. Alerte Stock Bas (${stockBas.length} produits)', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.orange)),
-            pw.Divider(),
-            pw.SizedBox(height: 10),
-            if (stockBas.isEmpty)
-              pw.Text('Aucun produit en stock bas.')
-            else
-              pw.TableHelper.fromTextArray(
-                headers: ['Produit', 'Stock Actuel', 'Seuil'],
-                data: stockBas.map((p) => [p.nom, p.quantiteStock.toString(), p.seuilAlerte.toString()]).toList(),
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-              ),
+            // Alertes
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.start,
+              children: [
+                _buildReportStatCard(
+                  'Alerte Stock Bas',
+                  stockBas.isEmpty ? 'Aucun produit' : '${stockBas.length} produit(s)',
+                  PdfColors.orange,
+                  width: 150,
+                ),
+                pw.SizedBox(width: 20),
+                _buildReportStatCard(
+                  'Péremption Proche',
+                  expiringSoon.isEmpty ? 'Aucun produit' : '${expiringSoon.length} produit(s)',
+                  PdfColors.red,
+                  width: 150,
+                ),
+              ]
+            ),
             pw.SizedBox(height: 30),
 
-            // Peremption
-            pw.Text('3. Péremption Proche (${expiringSoon.length} produits)', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.red)),
-            pw.Divider(),
+            // Factures
+            pw.Text('Historique des Factures', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold, color: PdfColors.blue)),
+            pw.Divider(color: PdfColors.blue),
             pw.SizedBox(height: 10),
-            if (expiringSoon.isEmpty)
-              pw.Text('Aucun produit proche de la péremption.')
+            if (factureLignes.isEmpty)
+              pw.Text('Aucune donnée pour cette période.', style: const pw.TextStyle(color: PdfColors.grey))
             else
               pw.TableHelper.fromTextArray(
-                headers: ['Produit', 'Stock', 'Date de Péremption'],
-                data: expiringSoon.map((p) => [
-                  p.nom,
-                  p.quantiteStock.toString(),
-                  p.datePeremption != null ? dateFormat.format(p.datePeremption!) : '-',
-                ]).toList(),
+                headers: ['N° de Facture', 'Nom du Produit', 'Date', 'Quantité', 'Prix Unitaire', 'Total'],
+                data: factureLignes.map((l) {
+                  final total = l.produit.prixVente * l.detail.quantite;
+                  return [
+                    l.facture.numeroFacture,
+                    l.produit.nom,
+                    dateFormat.format(l.facture.dateEmission),
+                    l.detail.quantite.toString(),
+                    CurrencyFormatter.format(l.produit.prixVente),
+                    CurrencyFormatter.format(total),
+                  ];
+                }).toList(),
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                cellAlignments: {
+                  0: pw.Alignment.centerLeft,
+                  1: pw.Alignment.centerLeft,
+                  2: pw.Alignment.centerLeft,
+                  3: pw.Alignment.centerRight,
+                  4: pw.Alignment.centerRight,
+                  5: pw.Alignment.centerRight,
+                },
               ),
           ];
         },
@@ -195,13 +218,22 @@ class PdfService {
     return pdf.save();
   }
 
-  static pw.Widget _buildReportStat(String label, String value) {
-    return pw.Column(
-      children: [
-        pw.Text(label, style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey)),
-        pw.SizedBox(height: 4),
-        pw.Text(value, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-      ]
+  static pw.Widget _buildReportStatCard(String label, String value, PdfColor iconColor, {double width = 110}) {
+    return pw.Container(
+      width: width,
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600)),
+          pw.SizedBox(height: 4),
+          pw.Text(value, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold)),
+        ]
+      )
     );
   }
 }

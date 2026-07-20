@@ -6,6 +6,15 @@ import '../providers/database_provider.dart';
 import '../services/pdf_service.dart';
 import '../utils/currency_formatter.dart';
 import '../repositories/factures_repository.dart';
+import '../providers/auth_provider.dart';
+
+enum FilterPeriod {
+  journalier,
+  hebdo,
+  mensuel,
+  semestriel,
+  annuel
+}
 
 class RapportsScreen extends ConsumerStatefulWidget {
   const RapportsScreen({super.key});
@@ -15,35 +24,47 @@ class RapportsScreen extends ConsumerStatefulWidget {
 }
 
 class _RapportsScreenState extends ConsumerState<RapportsScreen> {
-  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
-  DateTime _endDate = DateTime.now();
+  FilterPeriod _selectedPeriod = FilterPeriod.mensuel;
 
-  Future<void> _selectDateRange(BuildContext context) async {
-    final initialDateRange = DateTimeRange(start: _startDate, end: _endDate);
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      initialDateRange: initialDateRange,
-    );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked.start;
-        _endDate = picked.end;
-      });
+  DateTimeRange _getDateRangeForPeriod(FilterPeriod period) {
+    final now = DateTime.now();
+    final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    DateTime start;
+
+    switch (period) {
+      case FilterPeriod.journalier:
+        start = DateTime(now.year, now.month, now.day, 0, 0, 0);
+        break;
+      case FilterPeriod.hebdo:
+        start = end.subtract(Duration(days: now.weekday - 1));
+        start = DateTime(start.year, start.month, start.day, 0, 0, 0);
+        break;
+      case FilterPeriod.mensuel:
+        start = DateTime(now.year, now.month, 1, 0, 0, 0);
+        break;
+      case FilterPeriod.semestriel:
+        int currentMonth = now.month;
+        int startMonth = currentMonth <= 6 ? 1 : 7;
+        start = DateTime(now.year, startMonth, 1, 0, 0, 0);
+        break;
+      case FilterPeriod.annuel:
+        start = DateTime(now.year, 1, 1, 0, 0, 0);
+        break;
     }
+
+    return DateTimeRange(start: start, end: end);
   }
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    
-    // Create a Future that fetches all necessary data
-    final rapportFuture = _fetchRapportData(ref);
+    final range = _getDateRangeForPeriod(_selectedPeriod);
+    final rapportFuture = _fetchRapportData(ref, range);
+    final pharmacieAsync = ref.watch(currentPharmacieProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FBF9), // Lighter background matching the mock
       appBar: AppBar(
-        title: const Text('Rapports d\'Activité',style:TextStyle(color:Colors.white, fontWeight:FontWeight.bold)),
+        title: const Text('Rapports d\'Activité', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.green,
         scrolledUnderElevation: 0,
         actions: [
@@ -55,14 +76,21 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
               foregroundColor: Colors.white,
             ),
             onPressed: () async {
-              final dataMap = await _fetchRapportData(ref);
+              final dataMap = await _fetchRapportData(ref, range);
+              String pharmacieNom = 'PHARMACIE POS';
               
+              if (pharmacieAsync.hasValue && pharmacieAsync.value != null) {
+                 pharmacieNom = pharmacieAsync.value!.nom;
+              }
+
               final pdfData = await PdfService.generateReportPdf(
-                start: _startDate,
-                end: _endDate,
+                start: range.start,
+                end: range.end,
                 data: dataMap['stats'],
                 stockBas: dataMap['stockBas'],
                 expiringSoon: dataMap['expiringSoon'],
+                factureLignes: dataMap['factureLignes'],
+                pharmacieNom: pharmacieNom,
               );
 
               if (context.mounted) {
@@ -96,23 +124,22 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
         ],
       ),
       body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Filter Bar
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                const Text('Période sélectionnée :', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(width: 16),
-                TextButton.icon(
-                  icon: const Icon(Icons.calendar_today),
-                  label: Text('${dateFormat.format(_startDate)} - ${dateFormat.format(_endDate)}'),
-                  onPressed: () => _selectDateRange(context),
-                  style: TextButton.styleFrom(
-                    backgroundColor: Colors.grey.shade200,
-                  ),
-                ),
-                const Spacer(),
+                _buildFilterButton('Journalier', FilterPeriod.journalier),
+                const SizedBox(width: 8),
+                _buildFilterButton('Hebdo', FilterPeriod.hebdo),
+                const SizedBox(width: 8),
+                _buildFilterButton('Mensuel', FilterPeriod.mensuel),
+                const SizedBox(width: 8),
+                _buildFilterButton('Semestriel', FilterPeriod.semestriel),
+                const SizedBox(width: 8),
+                _buildFilterButton('Annuel', FilterPeriod.annuel),
               ],
             ),
           ),
@@ -131,16 +158,16 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
                 final stats = snapshot.data!['stats'];
                 final List stockBas = snapshot.data!['stockBas'];
                 final List expiringSoon = snapshot.data!['expiringSoon'];
-                final List<FactureWithDetails> factures = snapshot.data!['factures'];
+                final List<FactureLigne> factureLignes = snapshot.data!['factureLignes'];
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Ventes par Période
-                      const Text('1. Résumé des Ventes', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
-                      const Divider(),
+                      const Text('Résumé des Ventes', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green)),
+                      const Divider(color: Colors.green),
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -153,36 +180,44 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
                           Expanded(child: _buildReportCard('Bénéfice Total', CurrencyFormatter.format(stats['beneficeTotal'] as double), Icons.trending_up, Colors.orange)),
                         ],
                       ),
-                      const SizedBox(height: 32),
-
-                      // Rapport de Stock
-                      const Text('2. Alerte Stock Bas', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange)),
-                      const Divider(),
                       const SizedBox(height: 16),
-                      if (stockBas.isEmpty)
-                        const Text('Aucun produit n\'est en stock bas.')
-                      else
-                        _buildProduitTable(stockBas, false),
-                      const SizedBox(height: 32),
 
-                      // Rapport Péremption
-                      const Text('3. Péremption Proche', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red)),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      if (expiringSoon.isEmpty)
-                        const Text('Aucun produit n\'est proche de la péremption.')
-                      else
-                        _buildProduitTable(expiringSoon, true),
+                      // Rapport de Stock et Péremption (Affichés sous forme de cartes d'alerte)
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildReportCard(
+                              'Alerte Stock Bas',
+                              stockBas.isEmpty ? 'Aucun produit' : '${stockBas.length} produit(s)',
+                              Icons.error_outline,
+                              Colors.orange,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: _buildReportCard(
+                              'Péremption Proche',
+                              expiringSoon.isEmpty ? 'Aucun produit' : '${expiringSoon.length} produit(s)',
+                              Icons.event_busy,
+                              Colors.red,
+                            ),
+                          ),
+                          const Spacer(flex: 2), // To keep the cards the same size as the top ones if we want, or adjust flex
+                        ],
+                      ),
                       const SizedBox(height: 32),
 
                       // Historique des Factures
-                      const Text('4. Historique des Factures', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)),
-                      const Divider(),
+                      const Text('Historique des Factures', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.blue)),
+                      const Divider(color: Colors.blue),
                       const SizedBox(height: 16),
-                      if (factures.isEmpty)
-                        const Text('Aucune facture sur cette période.')
+                      if (factureLignes.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: Text('Aucune donnée pour cette période.', style: TextStyle(fontStyle: FontStyle.italic)),
+                        )
                       else
-                        _buildFacturesTable(factures),
+                        _buildFacturesLignesTable(factureLignes),
                       const SizedBox(height: 32),
                     ],
                   ),
@@ -195,18 +230,32 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
     );
   }
 
-  Future<Map<String, dynamic>> _fetchRapportData(WidgetRef ref) async {
+  Widget _buildFilterButton(String label, FilterPeriod period) {
+    final isActive = _selectedPeriod == period;
+    return OutlinedButton(
+      onPressed: () {
+        setState(() {
+          _selectedPeriod = period;
+        });
+      },
+      style: OutlinedButton.styleFrom(
+        backgroundColor: isActive ? Colors.green : Colors.white,
+        foregroundColor: isActive ? Colors.white : Colors.black87,
+        side: BorderSide(color: isActive ? Colors.green : Colors.grey.shade300),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      child: Text(label),
+    );
+  }
+
+  Future<Map<String, dynamic>> _fetchRapportData(WidgetRef ref, DateTimeRange range) async {
     final ventesRepo = ref.read(ventesRepositoryProvider);
     final produitsRepo = ref.read(produitsRepositoryProvider);
     final facturesRepo = ref.read(facturesRepositoryProvider);
 
-    // Make sure we include the whole end date
-    final end = DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59);
-    final start = DateTime(_startDate.year, _startDate.month, _startDate.day, 0, 0, 0);
-
-    final stats = await ventesRepo.getRapportData(start, end);
+    final stats = await ventesRepo.getRapportData(range.start, range.end);
     final tousProduits = await produitsRepo.getTousLesProduits();
-    final factures = await facturesRepo.getFacturesByPeriod(start, end);
+    final factureLignes = await facturesRepo.getFactureLignesByPeriod(range.start, range.end);
     
     final stockBas = tousProduits.where((p) => p.quantiteStock <= p.seuilAlerte).toList();
     final now = DateTime.now();
@@ -216,33 +265,39 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
       'stats': stats,
       'stockBas': stockBas,
       'expiringSoon': expiringSoon,
-      'factures': factures,
+      'factureLignes': factureLignes,
     };
   }
 
-  Widget _buildReportCard(String title, String value, IconData icon, Color color) {
+  Widget _buildReportCard(String title, String value, IconData icon, Color iconColor) {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 16),
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Icon(icon, color: iconColor, size: 28),
+          const SizedBox(height: 12),
+          Text(title, style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
           const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87)),
         ],
       ),
     );
   }
 
-  Widget _buildProduitTable(List produits, bool showPeremption) {
+  Widget _buildFacturesLignesTable(List<FactureLigne> lignes) {
     final dateFormat = DateFormat('dd/MM/yyyy');
     
     return Container(
@@ -250,76 +305,39 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-      ),
-      child: DataTable(
-        headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
-        columns: [
-          const DataColumn(label: Text('Produit')),
-          const DataColumn(label: Text('Stock')),
-          if (!showPeremption) const DataColumn(label: Text('Seuil')),
-          if (showPeremption) const DataColumn(label: Text('Péremption')),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          )
         ],
-        rows: produits.map((p) {
-          return DataRow(cells: [
-            DataCell(Text(p.nom, style: const TextStyle(fontWeight: FontWeight.bold))),
-            DataCell(Text(p.quantiteStock.toString(), style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
-            if (!showPeremption) DataCell(Text(p.seuilAlerte.toString())),
-            if (showPeremption) DataCell(Text(p.datePeremption != null ? dateFormat.format(p.datePeremption!) : '-')),
-          ]);
-        }).toList(),
       ),
-    );
-  }
-
-  Widget _buildFacturesTable(List<FactureWithDetails> factures) {
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-    
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.white,
+      child: ClipRRect(
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-      ),
-      child: DataTable(
-        headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
-        columns: const [
-          DataColumn(label: Text('Numéro')),
-          DataColumn(label: Text('Date')),
-          DataColumn(label: Text('Paiement')),
-          DataColumn(label: Text('Total')),
-          DataColumn(label: Text('Action')),
-        ],
-        rows: factures.map((f) {
-          return DataRow(cells: [
-            DataCell(Text(f.facture.numeroFacture, style: const TextStyle(fontWeight: FontWeight.bold))),
-            DataCell(Text(dateFormat.format(f.facture.dateEmission))),
-            DataCell(Text(f.vente.modePaiement)),
-            DataCell(Text(CurrencyFormatter.format(f.vente.montantTotal), style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
-            DataCell(
-              IconButton(
-                icon: const Icon(Icons.download, color: Colors.blue),
-                tooltip: 'Télécharger',
-                onPressed: () async {
-                  try {
-                    final pdfData = await PdfService.generateInvoicePdf(
-                      factureId: f.facture.id,
-                      numeroFacture: f.facture.numeroFacture,
-                      vente: f.vente,
-                      items: [], // we don't have items here, but PDF service might need it, actually we'd need to fetch items if we really want to download it again
-                    );
-                    await Printing.sharePdf(bytes: pdfData, filename: '${f.facture.numeroFacture}.pdf');
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
-                    }
-                  }
-                },
-              ),
-            ),
-          ]);
-        }).toList(),
+        child: DataTable(
+          headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+          columns: const [
+            DataColumn(label: Text('N° de Facture', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Nom du Produit', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Quantité', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Prix Unitaire', style: TextStyle(fontWeight: FontWeight.bold))),
+            DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+          rows: lignes.map((l) {
+            final double totalLigne = l.produit.prixVente * l.detail.quantite;
+            return DataRow(cells: [
+              DataCell(Text(l.facture.numeroFacture)),
+              DataCell(Text(l.produit.nom)),
+              DataCell(Text(dateFormat.format(l.facture.dateEmission))),
+              DataCell(Text(l.detail.quantite.toString())),
+              DataCell(Text(CurrencyFormatter.format(l.produit.prixVente))),
+              DataCell(Text(CurrencyFormatter.format(totalLigne))),
+            ]);
+          }).toList(),
+        ),
       ),
     );
   }
