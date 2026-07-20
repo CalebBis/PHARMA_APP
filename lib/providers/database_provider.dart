@@ -5,6 +5,8 @@ import '../repositories/produits_repository.dart';
 import '../repositories/utilisateurs_repository.dart';
 import '../repositories/categories_repository.dart';
 import '../repositories/ventes_repository.dart';
+import '../repositories/factures_repository.dart';
+import '../services/sync_service.dart';
 
 final databaseProvider = Provider<AppDatabase>((ref) {
   return AppDatabase();
@@ -12,7 +14,8 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 
 final produitsRepositoryProvider = Provider<ProduitsRepository>((ref) {
   final isPharmacien = ref.watch(authProvider.notifier).isPharmacien;
-  return ProduitsRepository(ref.watch(databaseProvider), isPharmacien);
+  final pharmacieId = ref.watch(authProvider)?.pharmacieId ?? '';
+  return ProduitsRepository(ref.watch(databaseProvider), isPharmacien, pharmacieId);
 });
 
 final utilisateursRepositoryProvider = Provider<UtilisateursRepository>((ref) {
@@ -20,9 +23,20 @@ final utilisateursRepositoryProvider = Provider<UtilisateursRepository>((ref) {
 });
 
 final categoriesRepositoryProvider = Provider<CategoriesRepository>((ref) {
-  return CategoriesRepository(ref.watch(databaseProvider));
+  final pharmacieId = ref.watch(authProvider)?.pharmacieId ?? '';
+  return CategoriesRepository(ref.watch(databaseProvider), pharmacieId);
 });
 
 final ventesRepositoryProvider = Provider<VentesRepository>((ref) {
-  return VentesRepository(ref.watch(databaseProvider));
+  final pharmacieId = ref.watch(authProvider)?.pharmacieId ?? '';
+  return VentesRepository(ref.watch(databaseProvider), pharmacieId);
+});
+
+final facturesRepositoryProvider = Provider<FacturesRepository>((ref) {
+  final pharmacieId = ref.watch(authProvider)?.pharmacieId ?? '';
+  return FacturesRepository(ref.watch(databaseProvider), pharmacieId);
+});
+
+final syncServiceProvider = Provider<SyncService>((ref) {
+  return SyncService(ref.watch(databaseProvider));
 });

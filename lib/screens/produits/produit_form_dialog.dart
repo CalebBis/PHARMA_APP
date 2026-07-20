@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../database/database.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/categories_provider.dart';
+import '../../utils/text_formatters.dart';
 import 'categories_dialog.dart';
 
 class ProduitFormDialog extends ConsumerStatefulWidget {
@@ -25,7 +26,7 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
   late TextEditingController _stockController;
   late TextEditingController _seuilController;
   
-  int? _selectedCategoryId;
+  String? _selectedCategoryId;
   DateTime? _selectedDatePeremption;
 
   @override
@@ -51,7 +52,7 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
 
     final repo = ref.read(produitsRepositoryProvider);
     
-    final pNom = _nomController.text.trim();
+    final pNom = toTitleCase(_nomController.text.trim());
     final pAchat = double.parse(_prixAchatController.text);
     final pVente = double.parse(_prixVenteController.text);
     final pStock = int.parse(_stockController.text);
@@ -61,7 +62,7 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
       // Add
       await repo.ajouterProduit(ProduitsCompanion(
         nom: drift.Value(pNom),
-        categorieId: drift.Value(_selectedCategoryId!),
+        categorieId: drift.Value(_selectedCategoryId),
         prixAchat: drift.Value(pAchat),
         prixVente: drift.Value(pVente),
         quantiteStock: drift.Value(pStock),
@@ -73,7 +74,7 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
       // Update
       await repo.modifierProduit(widget.produitToEdit!.copyWith(
         nom: pNom,
-        categorieId: _selectedCategoryId,
+        categorieId: drift.Value(_selectedCategoryId),
         prixAchat: pAchat,
         prixVente: pVente,
         quantiteStock: pStock,
@@ -117,6 +118,7 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
                 TextFormField(
                   controller: _nomController,
                   decoration: const InputDecoration(labelText: 'Nom du produit'),
+                  inputFormatters: [TitleCaseTextInputFormatter()],
                   validator: (val) => (val == null || val.isEmpty) ? 'Requis' : null,
                 ),
                 const SizedBox(height: 16),
@@ -125,11 +127,11 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
                     Expanded(
                       child: categoriesAsync.when(
                         data: (categories) {
-                          return DropdownButtonFormField<int>(
+                          return DropdownButtonFormField<String>(
                             value: _selectedCategoryId,
                             decoration: const InputDecoration(labelText: 'Catégorie'),
                             items: categories.map((cat) {
-                              return DropdownMenuItem<int>(
+                              return DropdownMenuItem<String>(
                                 value: cat.id,
                                 child: Text(cat.nom),
                               );

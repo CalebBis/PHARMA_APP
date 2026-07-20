@@ -5,7 +5,6 @@ import 'dashboard_screen.dart';
 
 import 'produits/produits_screen.dart';
 import 'ventes/ventes_screen.dart';
-import 'factures/factures_screen.dart';
 import 'rapports_screen.dart';
 import 'parametres_screen.dart';
 import 'login_screen.dart';
@@ -20,19 +19,25 @@ class MainLayout extends ConsumerStatefulWidget {
 class _MainLayoutState extends ConsumerState<MainLayout> {
   int _selectedIndex = 0;
 
-  final List<Widget> _pages = [
-    const DashboardScreen(),
-    const ProduitsScreen(),
-    const VentesScreen(),
-    const FacturesScreen(),
-    const RapportsScreen(),
-    const ParametresScreen(),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
     final isPharmacien = ref.read(authProvider.notifier).isPharmacien;
+    final pharmacieAsync = ref.watch(currentPharmacieProvider);
+    
+    final List<Widget> pages = [
+      DashboardScreen(
+        onNavigateToVentes: () {
+          setState(() {
+            _selectedIndex = 2; // Ventes index
+          });
+        },
+      ),
+      const ProduitsScreen(),
+      const VentesScreen(),
+      const RapportsScreen(),
+      const ParametresScreen(),
+    ];
     
     // We only show Parametres if the user is a pharmacien
     final destinations = [
@@ -52,11 +57,6 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         label: Text('Ventes'),
       ),
       const NavigationRailDestination(
-        icon: Icon(Icons.receipt_long_outlined),
-        selectedIcon: Icon(Icons.receipt_long),
-        label: Text('Factures'),
-      ),
-      const NavigationRailDestination(
         icon: Icon(Icons.bar_chart_outlined),
         selectedIcon: Icon(Icons.bar_chart),
         label: Text('Rapports'),
@@ -72,16 +72,40 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
       body: Row(
         children: [
           NavigationRail(
+            extended: true,
+            minExtendedWidth: 250,
             selectedIndex: _selectedIndex,
             onDestinationSelected: (int index) {
               setState(() {
                 _selectedIndex = index;
               });
             },
-            labelType: NavigationRailLabelType.all,
+            labelType: NavigationRailLabelType.none,
             backgroundColor: Colors.green.shade50,
             selectedIconTheme: const IconThemeData(color: Colors.green),
             selectedLabelTextStyle: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            leading: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+              child: pharmacieAsync.when(
+                data: (ph) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (ph?.logoUrl != null && ph!.logoUrl!.isNotEmpty)
+                      Image.network(ph.logoUrl!, height: 80, fit: BoxFit.contain)
+                    else
+                      const Icon(Icons.local_pharmacy, size: 60, color: Colors.green),
+                    const SizedBox(height: 12),
+                    Text(
+                      ph?.nom ?? 'Ma Pharmacie',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+                loading: () => const CircularProgressIndicator(),
+                error: (_, __) => const Icon(Icons.local_pharmacy, size: 60, color: Colors.green),
+              ),
+            ),
             destinations: destinations,
             trailing: Expanded(
               child: Align(
@@ -95,10 +119,10 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                       const SizedBox(height: 8),
                       CircleAvatar(
                         backgroundColor: Colors.green.shade200,
-                        child: Text(user?.nom.substring(0, 1).toUpperCase() ?? '?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        child: Text(user?.prenom.substring(0, 1).toUpperCase() ?? '?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(height: 8),
-                      Text(user?.nom ?? 'Utilisateur', style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                      Text('${user?.prenom ?? ''} ${user?.nom ?? ''}'.trim().isEmpty ? 'Utilisateur' : '${user?.prenom ?? ''} ${user?.nom ?? ''}'.trim(), style: const TextStyle(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
                       Text(user?.role.toUpperCase() ?? '', style: const TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
                       const SizedBox(height: 8),
                       IconButton(
@@ -119,7 +143,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           ),
           const VerticalDivider(thickness: 1, width: 1),
           Expanded(
-            child: _pages[_selectedIndex],
+            child: pages[_selectedIndex],
           )
         ],
       ),

@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'main_layout.dart';
-import '../providers/database_provider.dart';
+import 'signup_screen.dart';
 import '../providers/auth_provider.dart';
-import '../database/database.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,8 +15,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _motDePasseController = TextEditingController();
 
   void _login() async {
-    final repo = ref.read(utilisateursRepositoryProvider);
-    final user = await repo.login(_identifiantController.text, _motDePasseController.text);
+    final authService = ref.read(authServiceProvider);
+    
+    // Show loading dialog or something if needed, but for now just await
+    final user = await authService.login(_identifiantController.text, _motDePasseController.text);
     
     if (user != null) {
       ref.read(authProvider.notifier).setUtilisateur(user);
@@ -26,26 +27,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           MaterialPageRoute(builder: (_) => const MainLayout()),
         );
       }
-    } else if (_identifiantController.text == 'admin' && _motDePasseController.text == 'admin') {
-      // Fallback local admin for dev if db is empty
-      final adminUser = Utilisateur(
-        id: 0,
-        nom: 'Administrateur',
-        identifiant: 'admin',
-        motDePasse: 'admin',
-        role: 'pharmacien',
-        dateCreation: DateTime.now(),
-      );
-      ref.read(authProvider.notifier).setUtilisateur(adminUser);
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const MainLayout()),
-        );
-      }
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Identifiants incorrects')),
+          const SnackBar(content: Text('Identifiants incorrects ou erreur de connexion')),
         );
       }
     }
@@ -93,6 +78,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   child: const Text('Se connecter', style: TextStyle(fontSize: 16)),
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SignupScreen()),
+                  );
+                },
+                child: const Text("Créer un compte", style: TextStyle(color: Colors.green)),
               ),
             ],
           ),

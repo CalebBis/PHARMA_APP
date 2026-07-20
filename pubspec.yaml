@@ -40,6 +40,9 @@ dependencies:
   printing: ^5.14.3
   fl_chart: ^0.68.0
   file_picker: ^8.0.0
+  supabase_flutter: ^2.16.0
+  uuid: ^4.6.0
+  connectivity_plus: ^7.3.0
 
 dev_dependencies:
   build_runner: ^2.4.13

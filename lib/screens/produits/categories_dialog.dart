@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' as drift;
 import '../../database/database.dart';
 import '../../providers/database_provider.dart';
 import '../../providers/categories_provider.dart';
+import '../../utils/text_formatters.dart';
 
 class CategoriesDialog extends ConsumerStatefulWidget {
   const CategoriesDialog({super.key});
@@ -20,7 +21,7 @@ class _CategoriesDialogState extends ConsumerState<CategoriesDialog> {
     
     final repo = ref.read(categoriesRepositoryProvider);
     await repo.ajouterCategorie(CategoriesCompanion(
-      nom: drift.Value(_nomController.text.trim()),
+      nom: drift.Value(toTitleCase(_nomController.text.trim())),
     ));
     _nomController.clear();
   }
@@ -46,6 +47,7 @@ class _CategoriesDialogState extends ConsumerState<CategoriesDialog> {
                       border: OutlineInputBorder(),
                       isDense: true,
                     ),
+                    inputFormatters: [TitleCaseTextInputFormatter()],
                     onSubmitted: (_) => _ajouter(),
                   ),
                 ),

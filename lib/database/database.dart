@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
+import 'package:uuid/uuid.dart';
 
 import 'tables/categories.dart';
 import 'tables/produits.dart';
@@ -11,6 +12,7 @@ import 'tables/utilisateurs.dart';
 import 'tables/ventes.dart';
 import 'tables/vente_details.dart';
 import 'tables/factures.dart';
+import 'tables/pharmacies.dart';
 
 part 'database.g.dart';
 
@@ -21,12 +23,31 @@ part 'database.g.dart';
   Ventes,
   VenteDetails,
   Factures,
+  Pharmacies,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (Migrator m) async {
+        await m.createAll();
+      },
+      onUpgrade: (Migrator m, int from, int to) async {
+        if (from < 3) {
+          // Écraser la base de test lors de la migration
+          for (final table in allTables) {
+            await m.deleteTable(table.actualTableName);
+          }
+          await m.createAll();
+        }
+      },
+    );
+  }
 }
 
 LazyDatabase _openConnection() {

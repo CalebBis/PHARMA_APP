@@ -4,10 +4,11 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../database/database.dart';
 import '../providers/panier_provider.dart';
+import '../utils/currency_formatter.dart';
 
 class PdfService {
   static Future<Uint8List> generateInvoicePdf({
-    required int factureId,
+    required String factureId,
     required String numeroFacture,
     required Vente vente,
     required List<CartItem> items,
@@ -55,8 +56,8 @@ class PdfService {
                 data: items.map((item) => [
                   item.produit.nom,
                   item.quantite.toString(),
-                  '${item.produit.prixVente.toStringAsFixed(2)} €',
-                  '${item.sousTotal.toStringAsFixed(2)} €',
+                  CurrencyFormatter.format(item.produit.prixVente),
+                  CurrencyFormatter.format(item.sousTotal),
                 ]).toList(),
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
@@ -76,7 +77,7 @@ class PdfService {
                     children: [
                       pw.Text('Mode de paiement : ${vente.modePaiement}', style: const pw.TextStyle(fontSize: 14)),
                       pw.SizedBox(height: 8),
-                      pw.Text('TOTAL : ${vente.montantTotal.toStringAsFixed(2)} €', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                      pw.Text('TOTAL : ${CurrencyFormatter.format(vente.montantTotal)}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ],
@@ -147,9 +148,9 @@ class PdfService {
               mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
               children: [
                 _buildReportStat('Transactions', '${data['nbTransactions']}'),
-                _buildReportStat('Total Ventes', '${(data['totalVentes'] as double).toStringAsFixed(2)} €'),
-                _buildReportStat('Panier Moyen', '${(data['panierMoyen'] as double).toStringAsFixed(2)} €'),
-                _buildReportStat('Bénéfice Total', '${(data['beneficeTotal'] as double).toStringAsFixed(2)} €'),
+                _buildReportStat('Total Ventes', CurrencyFormatter.format(data['totalVentes'] as double)),
+                _buildReportStat('Panier Moyen', CurrencyFormatter.format(data['panierMoyen'] as double)),
+                _buildReportStat('Bénéfice Total', CurrencyFormatter.format(data['beneficeTotal'] as double)),
               ],
             ),
             pw.SizedBox(height: 30),

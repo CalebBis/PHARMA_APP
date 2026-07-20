@@ -4,7 +4,7 @@ import 'database_provider.dart';
 
 class ProduitFilter {
   final String searchQuery;
-  final int? categoryId;
+  final String? categoryId;
   final bool showLowStock;
   final bool showExpiringSoon;
 
@@ -17,7 +17,7 @@ class ProduitFilter {
 
   ProduitFilter copyWith({
     String? searchQuery,
-    int? categoryId,
+    String? categoryId,
     bool? showLowStock,
     bool? showExpiringSoon,
   }) {
@@ -33,8 +33,8 @@ class ProduitFilter {
 final produitFilterProvider = StateProvider<ProduitFilter>((ref) => ProduitFilter());
 
 final _allProduitsProvider = StreamProvider<List<Produit>>((ref) {
-  final db = ref.watch(databaseProvider);
-  return db.select(db.produits).watch();
+  final repo = ref.watch(produitsRepositoryProvider);
+  return repo.watchTousLesProduits();
 });
 
 final filteredProduitsProvider = Provider<AsyncValue<List<Produit>>>((ref) {

@@ -5,8 +5,8 @@ import '../../providers/produits_provider.dart';
 import '../../providers/panier_provider.dart';
 import '../../database/database.dart';
 import '../../providers/database_provider.dart';
-import '../../providers/factures_provider.dart';
 import '../../services/pdf_service.dart';
+import '../../utils/currency_formatter.dart';
 import 'package:printing/printing.dart';
 
 class VentesScreen extends ConsumerStatefulWidget {
@@ -56,9 +56,13 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
 
       final venteObj = Vente(
         id: venteId,
+        pharmacieId: '',  // will be filled by syncService on push
         dateVente: vente.dateVente.value,
         montantTotal: vente.montantTotal.value,
         modePaiement: vente.modePaiement.value,
+        updatedAt: DateTime.now(),
+        isSynced: false,
+        isDeleted: false,
       );
 
       final pdfData = await PdfService.generateInvoicePdf(
@@ -112,8 +116,8 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Point de Vente'),
-        backgroundColor: Colors.white,
+        title: const Text('Point de Vente',style:TextStyle(color:Colors.white, fontWeight:FontWeight.bold)),
+        backgroundColor: Colors.green,
         scrolledUnderElevation: 0,
       ),
       body: Row(
@@ -174,7 +178,7 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
                                       textAlign: TextAlign.center,
                                     ),
                                     const SizedBox(height: 8),
-                                    Text('${p.prixVente.toStringAsFixed(2)} €', style: const TextStyle(color: Colors.green, fontSize: 16)),
+                                    Text(CurrencyFormatter.format(p.prixVente), style: const TextStyle(color: Colors.green, fontSize: 16)),
                                     const Spacer(),
                                     Text(
                                       isOutOfStock ? 'Rupture' : 'Stock: ${p.quantiteStock}',
@@ -243,8 +247,8 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text('${item.sousTotal.toStringAsFixed(2)} €', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                    Text('${item.produit.prixVente.toStringAsFixed(2)} €/u', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                    Text(CurrencyFormatter.format(item.sousTotal), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text('${CurrencyFormatter.format(item.produit.prixVente)}/u', style: const TextStyle(fontSize: 12, color: Colors.grey)),
                                   ],
                                 ),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -265,7 +269,7 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               const Text('Total', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                              Text('${total.toStringAsFixed(2)} €', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green)),
+                              Text(CurrencyFormatter.format(total), style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green)),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -274,8 +278,8 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
                             decoration: const InputDecoration(labelText: 'Mode de paiement', border: OutlineInputBorder()),
                             items: const [
                               DropdownMenuItem(value: 'Espèces', child: Text('Espèces')),
-                              DropdownMenuItem(value: 'Carte Bancaire', child: Text('Carte Bancaire')),
-                              DropdownMenuItem(value: 'Mobile Money', child: Text('Mobile Money')),
+                             /* DropdownMenuItem(value: 'Carte Bancaire', child: Text('Carte Bancaire')),
+                              DropdownMenuItem(value: 'Mobile Money', child: Text('Mobile Money')) */
                             ],
                             onChanged: (val) {
                               if (val != null) {

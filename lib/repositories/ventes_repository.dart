@@ -1,22 +1,47 @@
 import 'package:drift/drift.dart';
 import '../database/database.dart';
+import 'package:uuid/uuid.dart';
 
 class VentesRepository {
   final AppDatabase _db;
-  VentesRepository(this._db);
+  final String _pharmacieId;
+  VentesRepository(this._db, this._pharmacieId);
 
-  Future<List<Vente>> getVentes() => _db.select(_db.ventes).get();
-  Stream<List<Vente>> watchVentes() => _db.select(_db.ventes).watch();
+  Future<List<Vente>> getVentes() => (_db.select(_db.ventes)
+        ..where((t) => t.pharmacieId.equals(_pharmacieId))
+        ..where((t) => t.isDeleted.equals(false)))
+      .get();
+      
+  Stream<List<Vente>> watchVentes() => (_db.select(_db.ventes)
+        ..where((t) => t.pharmacieId.equals(_pharmacieId))
+        ..where((t) => t.isDeleted.equals(false)))
+      .watch();
 
   // A transaction for a complete sale with details
-  Future<int> enregistrerVente(VentesCompanion vente, List<VenteDetailsCompanion> details) async {
+  Future<String> enregistrerVente(VentesCompanion vente, List<VenteDetailsCompanion> details) async {
     return _db.transaction(() async {
+      final String venteId = vente.id.present ? vente.id.value : const Uuid().v4();
+      
+      final v = vente.copyWith(
+        id: Value(venteId),
+        pharmacieId: Value(_pharmacieId),
+        updatedAt: Value(DateTime.now()),
+        isSynced: const Value(false),
+      );
+
       // 1. Insert vente
-      final venteId = await _db.into(_db.ventes).insert(vente);
+      await _db.into(_db.ventes).insert(v);
 
       // 2. Insert details
       for (var detail in details) {
-        await _db.into(_db.venteDetails).insert(detail.copyWith(venteId: Value(venteId)));
+        final d = detail.copyWith(
+          id: Value(const Uuid().v4()),
+          pharmacieId: Value(_pharmacieId),
+          venteId: Value(venteId),
+          updatedAt: Value(DateTime.now()),
+          isSynced: const Value(false),
+        );
+        await _db.into(_db.venteDetails).insert(d);
         
         // Decrement stock
         if (detail.produitId.present) {
@@ -24,7 +49,11 @@ class VentesRepository {
           final produit = await (_db.select(_db.produits)..where((p) => p.id.equals(produitId))).getSingle();
           final nouvelleQuantite = produit.quantiteStock - detail.quantite.value;
           
-          await _db.update(_db.produits).replace(produit.copyWith(quantiteStock: nouvelleQuantite));
+          await _db.update(_db.produits).replace(produit.copyWith(
+            quantiteStock: nouvelleQuantite,
+            updatedAt: DateTime.now(),
+            isSynced: false,
+          ));
         }
       }
       return venteId;
@@ -33,6 +62,8 @@ class VentesRepository {
 
   Future<List<Vente>> getVentesRecentes(int limit) {
     return (_db.select(_db.ventes)
+          ..where((t) => t.pharmacieId.equals(_pharmacieId))
+          ..where((t) => t.isDeleted.equals(false))
           ..orderBy([(v) => OrderingTerm(expression: v.dateVente, mode: OrderingMode.desc)])
           ..limit(limit))
         .get();
@@ -43,6 +74,8 @@ class VentesRepository {
     final startOfDay = DateTime(now.year, now.month, now.day);
     
     final query = _db.select(_db.ventes)
+      ..where((v) => v.pharmacieId.equals(_pharmacieId))
+      ..where((v) => v.isDeleted.equals(false))
       ..where((v) => v.dateVente.isBiggerOrEqualValue(startOfDay));
       
     final ventes = await query.get();
@@ -54,7 +87,37 @@ class VentesRepository {
     final startOfDay = DateTime(now.year, now.month, now.day);
     
     final query = _db.select(_db.ventes)
+      ..where((v) => v.pharmacieId.equals(_pharmacieId))
+      ..where((v) => v.isDeleted.equals(false))
       ..where((v) => v.dateVente.isBiggerOrEqualValue(startOfDay));
+      
+    final ventes = await query.get();
+    return ventes.length;
+  }
+
+  Future<double> getVentesDeLaVeille() async {
+    final now = DateTime.now();
+    final startOfYesterday = DateTime(now.year, now.month, now.day - 1);
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    
+    final query = _db.select(_db.ventes)
+      ..where((v) => v.pharmacieId.equals(_pharmacieId))
+      ..where((v) => v.isDeleted.equals(false))
+      ..where((v) => v.dateVente.isBiggerOrEqualValue(startOfYesterday) & v.dateVente.isSmallerThanValue(startOfDay));
+      
+    final ventes = await query.get();
+    return ventes.fold<double>(0.0, (sum, v) => sum + v.montantTotal);
+  }
+
+  Future<int> getTransactionsDeLaVeille() async {
+    final now = DateTime.now();
+    final startOfYesterday = DateTime(now.year, now.month, now.day - 1);
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    
+    final query = _db.select(_db.ventes)
+      ..where((v) => v.pharmacieId.equals(_pharmacieId))
+      ..where((v) => v.isDeleted.equals(false))
+      ..where((v) => v.dateVente.isBiggerOrEqualValue(startOfYesterday) & v.dateVente.isSmallerThanValue(startOfDay));
       
     final ventes = await query.get();
     return ventes.length;
@@ -68,12 +131,12 @@ class VentesRepository {
       FROM ventes v
       JOIN vente_details d ON d.vente_id = v.id
       JOIN produits p ON p.id = d.produit_id
-      WHERE v.date_vente >= ?
+      WHERE v.date_vente >= ? AND v.pharmacie_id = ? AND v.is_deleted = 0
       GROUP BY p.id
       ORDER BY total_qty DESC
       LIMIT 1
       ''',
-      variables: [Variable.withDateTime(startDate)],
+      variables: [Variable.withDateTime(startDate), Variable.withString(_pharmacieId)],
     ).getSingleOrNull();
     
     return result?.read<String>('nom');
@@ -85,11 +148,11 @@ class VentesRepository {
       '''
       SELECT DATE(date_vente, 'unixepoch') as jour, SUM(montant_total) as total
       FROM ventes
-      WHERE date_vente >= ?
+      WHERE date_vente >= ? AND pharmacie_id = ? AND is_deleted = 0
       GROUP BY jour
       ORDER BY jour ASC
       ''',
-      variables: [Variable.withDateTime(startDate)],
+      variables: [Variable.withDateTime(startDate), Variable.withString(_pharmacieId)],
     ).get();
     
     return result.map((row) => {
@@ -104,9 +167,9 @@ class VentesRepository {
       '''
       SELECT COUNT(v.id) as nb_transactions, SUM(v.montant_total) as total_ventes
       FROM ventes v
-      WHERE v.date_vente >= ? AND v.date_vente <= ?
+      WHERE v.date_vente >= ? AND v.date_vente <= ? AND v.pharmacie_id = ? AND v.is_deleted = 0
       ''',
-      variables: [Variable.withDateTime(start), Variable.withDateTime(end)],
+      variables: [Variable.withDateTime(start), Variable.withDateTime(end), Variable.withString(_pharmacieId)],
     ).getSingleOrNull();
 
     final nbTransactions = ventesQuery?.read<int>('nb_transactions') ?? 0;
@@ -120,9 +183,9 @@ class VentesRepository {
       FROM ventes v
       JOIN vente_details d ON d.vente_id = v.id
       JOIN produits p ON p.id = d.produit_id
-      WHERE v.date_vente >= ? AND v.date_vente <= ?
+      WHERE v.date_vente >= ? AND v.date_vente <= ? AND v.pharmacie_id = ? AND v.is_deleted = 0
       ''',
-      variables: [Variable.withDateTime(start), Variable.withDateTime(end)],
+      variables: [Variable.withDateTime(start), Variable.withDateTime(end), Variable.withString(_pharmacieId)],
     ).getSingleOrNull();
 
     final beneficeTotal = beneficeQuery?.read<double>('benefice') ?? 0.0;

@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../providers/dashboard_provider.dart';
+import '../../utils/currency_formatter.dart';
 
 class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onNavigateToVentes;
+  const DashboardScreen({super.key, this.onNavigateToVentes});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -13,9 +15,13 @@ class DashboardScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dashboard'),
-        backgroundColor: Colors.white,
+        
+        title: const Text('Dashboard',
+        style:TextStyle(fontWeight:FontWeight.bold, color:Colors.white)
+        ),
+        backgroundColor: Colors.green,
         scrolledUnderElevation: 0,
+        
       ),
       body: dashboardDataAsync.when(
         data: (data) {
@@ -27,16 +33,27 @@ class DashboardScreen extends ConsumerWidget {
                 // Cards
                 Row(
                   children: [
-                    Expanded(child: _buildStatCard('Ventes du jour', '${data.ventesDuJour.toStringAsFixed(2)} €', Icons.attach_money, Colors.green)),
+                    Expanded(child: _buildStatCard('Ventes du jour', CurrencyFormatter.format(data.ventesDuJour), Icons.attach_money, Colors.green, tendance: data.tendanceVentes )), 
                     const SizedBox(width: 16),
-                    Expanded(child: _buildStatCard('Transactions (j)', '${data.transactionsDuJour}', Icons.receipt_long, Colors.blue)),
+                    Expanded(child: _buildStatCard('Transactions (j)', '${data.transactionsDuJour}', Icons.receipt_long, Colors.blue, tendance: data.tendanceTransactions)),
                     const SizedBox(width: 16),
-                    Expanded(child: _buildStatCard('Top Produit (7j)', data.topProduit, Icons.star, Colors.orange)),
+                    Expanded(child: _buildStatCard('Top Produit (7j)', data.topProduit, Icons.star, Colors.orange)), 
                     const SizedBox(width: 16),
                     Expanded(child: _buildStatCard('Stock Bas', '${data.stockBas}', Icons.warning, Colors.red)),
                   ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+                if (onNavigateToVentes != null)
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.add_shopping_cart),
+                      label: const Text('Nouvelle Vente'),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                      onPressed: onNavigateToVentes,
+                    ),
+                  ),
+                const SizedBox(height: 16),
                 
                 // Chart & Recent Sales
                 Row(
@@ -93,7 +110,7 @@ class DashboardScreen extends ConsumerWidget {
                                   final vente = data.ventesRecentes[index];
                                   return ListTile(
                                     contentPadding: EdgeInsets.zero,
-                                    title: Text('${vente.montantTotal.toStringAsFixed(2)} €', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    title: Text(CurrencyFormatter.format(vente.montantTotal), style: const TextStyle(fontWeight: FontWeight.bold)),
                                     subtitle: Text(DateFormat('dd/MM HH:mm').format(vente.dateVente)),
                                     trailing: const Icon(Icons.receipt, color: Colors.green),
                                   );
@@ -115,7 +132,18 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildStatCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(String title, String value, IconData icon, Color color, {double? tendance}) {
+    Widget? tendanceWidget;
+    if (tendance != null) {
+      final isPositive = tendance >= 0;
+      tendanceWidget = Row(
+        children: [
+          Icon(isPositive ? Icons.arrow_upward : Icons.arrow_downward, color: isPositive ? Colors.green : Colors.red, size: 16),
+          Text('${tendance.abs().toStringAsFixed(1)}%', style: TextStyle(color: isPositive ? Colors.green : Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+        ],
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
@@ -140,7 +168,13 @@ class DashboardScreen extends ConsumerWidget {
               children: [
                 Text(title, style: const TextStyle(color: Colors.grey, fontSize: 14)),
                 const SizedBox(height: 4),
-                Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(child: Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold))),
+                    if (tendanceWidget != null) tendanceWidget,
+                  ],
+                ),
               ],
             ),
           ),
@@ -185,7 +219,18 @@ class DashboardScreen extends ConsumerWidget {
       BarChartData(
         alignment: BarChartAlignment.spaceAround,
         maxY: maxY,
-        barTouchData: BarTouchData(enabled: true),
+        barTouchData: BarTouchData(
+          enabled: true,
+          touchTooltipData: BarTouchTooltipData(
+            getTooltipColor: (group) => Colors.blueGrey,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              return BarTooltipItem(
+                CurrencyFormatter.format(rod.toY),
+                const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              );
+            },
+          ),
+        ),
         titlesData: FlTitlesData(
           show: true,
           bottomTitles: AxisTitles(

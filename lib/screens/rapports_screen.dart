@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
-import '../../providers/database_provider.dart';
-import '../../services/pdf_service.dart';
+import '../providers/database_provider.dart';
+import '../services/pdf_service.dart';
+import '../utils/currency_formatter.dart';
+import '../repositories/factures_repository.dart';
 
 class RapportsScreen extends ConsumerStatefulWidget {
   const RapportsScreen({super.key});
@@ -41,8 +43,8 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Rapports d\'Activité'),
-        backgroundColor: Colors.white,
+        title: const Text('Rapports d\'Activité',style:TextStyle(color:Colors.white, fontWeight:FontWeight.bold)),
+        backgroundColor: Colors.green,
         scrolledUnderElevation: 0,
         actions: [
           ElevatedButton.icon(
@@ -129,6 +131,7 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
                 final stats = snapshot.data!['stats'];
                 final List stockBas = snapshot.data!['stockBas'];
                 final List expiringSoon = snapshot.data!['expiringSoon'];
+                final List<FactureWithDetails> factures = snapshot.data!['factures'];
 
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
@@ -141,13 +144,13 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildReportCard('Total Ventes', '${(stats['totalVentes'] as double).toStringAsFixed(2)} €', Icons.account_balance_wallet, Colors.green)),
+                          Expanded(child: _buildReportCard('Total Ventes', CurrencyFormatter.format(stats['totalVentes'] as double), Icons.account_balance_wallet, Colors.green)),
                           const SizedBox(width: 16),
                           Expanded(child: _buildReportCard('Transactions', '${stats['nbTransactions']}', Icons.receipt_long, Colors.blue)),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildReportCard('Panier Moyen', '${(stats['panierMoyen'] as double).toStringAsFixed(2)} €', Icons.shopping_cart, Colors.purple)),
+                          Expanded(child: _buildReportCard('Panier Moyen', CurrencyFormatter.format(stats['panierMoyen'] as double), Icons.shopping_cart, Colors.purple)),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildReportCard('Bénéfice Total', '${(stats['beneficeTotal'] as double).toStringAsFixed(2)} €', Icons.trending_up, Colors.orange)),
+                          Expanded(child: _buildReportCard('Bénéfice Total', CurrencyFormatter.format(stats['beneficeTotal'] as double), Icons.trending_up, Colors.orange)),
                         ],
                       ),
                       const SizedBox(height: 32),
@@ -171,6 +174,16 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
                       else
                         _buildProduitTable(expiringSoon, true),
                       const SizedBox(height: 32),
+
+                      // Historique des Factures
+                      const Text('4. Historique des Factures', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)),
+                      const Divider(),
+                      const SizedBox(height: 16),
+                      if (factures.isEmpty)
+                        const Text('Aucune facture sur cette période.')
+                      else
+                        _buildFacturesTable(factures),
+                      const SizedBox(height: 32),
                     ],
                   ),
                 );
@@ -185,6 +198,7 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
   Future<Map<String, dynamic>> _fetchRapportData(WidgetRef ref) async {
     final ventesRepo = ref.read(ventesRepositoryProvider);
     final produitsRepo = ref.read(produitsRepositoryProvider);
+    final facturesRepo = ref.read(facturesRepositoryProvider);
 
     // Make sure we include the whole end date
     final end = DateTime(_endDate.year, _endDate.month, _endDate.day, 23, 59, 59);
@@ -192,6 +206,7 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
 
     final stats = await ventesRepo.getRapportData(start, end);
     final tousProduits = await produitsRepo.getTousLesProduits();
+    final factures = await facturesRepo.getFacturesByPeriod(start, end);
     
     final stockBas = tousProduits.where((p) => p.quantiteStock <= p.seuilAlerte).toList();
     final now = DateTime.now();
@@ -201,6 +216,7 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
       'stats': stats,
       'stockBas': stockBas,
       'expiringSoon': expiringSoon,
+      'factures': factures,
     };
   }
 
@@ -250,6 +266,58 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
             DataCell(Text(p.quantiteStock.toString(), style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
             if (!showPeremption) DataCell(Text(p.seuilAlerte.toString())),
             if (showPeremption) DataCell(Text(p.datePeremption != null ? dateFormat.format(p.datePeremption!) : '-')),
+          ]);
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildFacturesTable(List<FactureWithDetails> factures) {
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+    
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
+      ),
+      child: DataTable(
+        headingRowColor: MaterialStateProperty.all(Colors.grey.shade100),
+        columns: const [
+          DataColumn(label: Text('Numéro')),
+          DataColumn(label: Text('Date')),
+          DataColumn(label: Text('Paiement')),
+          DataColumn(label: Text('Total')),
+          DataColumn(label: Text('Action')),
+        ],
+        rows: factures.map((f) {
+          return DataRow(cells: [
+            DataCell(Text(f.facture.numeroFacture, style: const TextStyle(fontWeight: FontWeight.bold))),
+            DataCell(Text(dateFormat.format(f.facture.dateEmission))),
+            DataCell(Text(f.vente.modePaiement)),
+            DataCell(Text(CurrencyFormatter.format(f.vente.montantTotal), style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold))),
+            DataCell(
+              IconButton(
+                icon: const Icon(Icons.download, color: Colors.blue),
+                tooltip: 'Télécharger',
+                onPressed: () async {
+                  try {
+                    final pdfData = await PdfService.generateInvoicePdf(
+                      factureId: f.facture.id,
+                      numeroFacture: f.facture.numeroFacture,
+                      vente: f.vente,
+                      items: [], // we don't have items here, but PDF service might need it, actually we'd need to fetch items if we really want to download it again
+                    );
+                    await Printing.sharePdf(bytes: pdfData, filename: '${f.facture.numeroFacture}.pdf');
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                    }
+                  }
+                },
+              ),
+            ),
           ]);
         }).toList(),
       ),

@@ -5,9 +5,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import '../../providers/database_provider.dart';
-import '../../providers/auth_provider.dart';
-import '../../database/database.dart';
+import '../providers/database_provider.dart';
+import '../providers/auth_provider.dart';
+import '../utils/text_formatters.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sp;
 
 class ParametresScreen extends ConsumerStatefulWidget {
   const ParametresScreen({super.key});
@@ -138,11 +139,15 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom complet')),
+            TextField(
+              controller: nomCtrl, 
+              decoration: const InputDecoration(labelText: 'Nom complet'),
+              inputFormatters: [TitleCaseTextInputFormatter()],
+            ),
             const SizedBox(height: 8),
-            TextField(controller: identifiantCtrl, decoration: const InputDecoration(labelText: 'Identifiant')),
+            TextField(controller: identifiantCtrl, decoration: const InputDecoration(labelText: 'Email (Identifiant)')),
             const SizedBox(height: 8),
-            TextField(controller: motDePasseCtrl, decoration: const InputDecoration(labelText: 'Mot de passe')),
+            TextField(controller: motDePasseCtrl, decoration: const InputDecoration(labelText: 'Mot de passe (min 6 caractères)')),
           ],
         ),
         actions: [
@@ -157,19 +162,110 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
     );
 
     if (result == true && identifiantCtrl.text.isNotEmpty && motDePasseCtrl.text.isNotEmpty) {
-      final repo = ref.read(utilisateursRepositoryProvider);
-      await repo.ajouterUtilisateur(UtilisateursCompanion.insert(
-        nom: nomCtrl.text,
-        identifiant: identifiantCtrl.text,
-        motDePasse: motDePasseCtrl.text,
-        role: 'vendeuse',
-        dateCreation: DateTime.now(),
-      ));
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Compte vendeuse créé avec succès !'), backgroundColor: Colors.green),
+      try {
+        setState(() => _isLoading = true);
+        final supabase = ref.read(authServiceProvider).supabase; 
+        final currentUser = ref.read(authProvider);
+        
+        if (currentUser == null) throw Exception("Non authentifié");
+
+        final res = await supabase.auth.signUp(
+          email: identifiantCtrl.text.trim(),
+          password: motDePasseCtrl.text,
         );
+        
+        if (res.user != null) {
+          // Insert into utilisateurs_profil
+          await supabase.from('utilisateurs_profil').insert({
+            'id': res.user!.id,
+            'prenom': '', // Placeholder since prenom is now required in DB
+            'nom': toTitleCase(nomCtrl.text.trim()),
+            'role': 'vendeuse',
+            'pharmacie_id': currentUser.pharmacieId,
+          });
+        }
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Compte vendeuse créé avec succès ! Veuillez vous reconnecter.'), backgroundColor: Colors.green),
+          );
+          // Logout current user because signup logs in the new user in Supabase
+          ref.read(authProvider.notifier).logout();
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red),
+          );
+        }
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _updatePharmacieNom(String pharmacieId, String currentNom) async {
+    final nomCtrl = TextEditingController(text: currentNom);
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Modifier le nom', style: TextStyle(color: Colors.green)),
+        content: TextField(controller: nomCtrl, decoration: const InputDecoration(labelText: 'Nom de la pharmacie')),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Annuler')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+
+    if (result == true && nomCtrl.text.isNotEmpty) {
+      setState(() => _isLoading = true);
+      try {
+        final supabase = ref.read(authServiceProvider).supabase;
+        await supabase.from('pharmacies').update({
+          'nom': nomCtrl.text, 
+          'updated_at': DateTime.now().toIso8601String()
+        }).eq('id', pharmacieId);
+        
+        await ref.read(syncServiceProvider).syncAll();
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _uploadLogo(String pharmacieId) async {
+    try {
+      FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.image);
+      if (result != null && result.files.single.path != null) {
+        setState(() => _isLoading = true);
+        final file = File(result.files.single.path!);
+        final ext = result.files.single.extension;
+        final fileName = 'logo_$pharmacieId.$ext';
+        
+        final supabase = ref.read(authServiceProvider).supabase;
+        
+        await supabase.storage.from('logos').upload(fileName, file, fileOptions: const sp.FileOptions(upsert: true));
+        final url = supabase.storage.from('logos').getPublicUrl(fileName);
+        
+        await supabase.from('pharmacies').update({
+          'logo_url': url, 
+          'updated_at': DateTime.now().toIso8601String()
+        }).eq('id', pharmacieId);
+        
+        await ref.read(syncServiceProvider).syncAll();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Logo mis à jour', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erreur: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -180,16 +276,61 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
       return const Center(child: Text('Accès refusé.'));
     }
 
+    final pharmacieAsync = ref.watch(currentPharmacieProvider);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Paramètres'),
-        backgroundColor: Colors.white,
+        title: const Text('Paramètres',style:TextStyle(color:Colors.white, fontWeight:FontWeight.bold)),
+        backgroundColor: Colors.green,
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
         : ListView(
             padding: const EdgeInsets.all(24.0),
             children: [
+              const Text('Informations de la Pharmacie', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+              const Divider(),
+              const SizedBox(height: 16),
+              Card(
+                color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: pharmacieAsync.when(
+                    data: (ph) {
+                      if (ph == null) return const Text('Chargement...');
+                      return Column(
+                        children: [
+                          ListTile(
+                            leading: ph.logoUrl != null && ph.logoUrl!.isNotEmpty 
+                                ? Image.network(ph.logoUrl!, width: 40, height: 40, fit: BoxFit.contain)
+                                : const Icon(Icons.image, color: Colors.green, size: 40),
+                            title: Text(ph.nom, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            subtitle: const Text('Modifier le nom ou le logo de la pharmacie'),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () => _updatePharmacieNom(ph.id, ph.nom),
+                                  tooltip: 'Modifier le nom',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.upload_file, color: Colors.orange),
+                                  onPressed: () => _uploadLogo(ph.id),
+                                  tooltip: 'Changer le logo',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                    loading: () => const CircularProgressIndicator(),
+                    error: (_, __) => const Text('Erreur de chargement de la pharmacie'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
               const Text('Base de données', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
               const Divider(),
               const SizedBox(height: 16),
