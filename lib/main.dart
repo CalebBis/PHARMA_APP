@@ -8,7 +8,7 @@ void main() async {
   
   await Supabase.initialize(
     url: 'https://meedlusaawhnwwioztoa.supabase.co',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY', // TODO: replace with your actual anon key, preferably from env vars
+    anonKey: 'sb_publishable_rlo9Lbkq9Fqnt5BVl8Ifkw_kQF2cyJG', // TODO: replace with your actual anon key, preferably from env vars
   );
 
   runApp(const ProviderScope(child: MyApp()));
@@ -27,7 +27,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto', // Default font
       ),
-      home: const LoginScreen(),
+      home: const LoginScreen (), // 
     );
   }
 }
