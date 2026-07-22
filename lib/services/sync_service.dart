@@ -13,41 +13,51 @@ class SyncService {
   final sp.SupabaseClient _supabase = sp.Supabase.instance.client;
   final AppDatabase _db;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  Timer? _periodicSyncTimer;
 
   SyncService(this._db);
 
-  /// Démarre l'écoute de la connectivité pour déclencher une synchro dès le retour d'internet.
-  void startListening() {
+  /// Démarre l'écoute de la connectivité et un timer périodique pour la synchro.
+  void startAutoSync() {
     _connectivitySubscription =
         Connectivity().onConnectivityChanged.listen((List<ConnectivityResult> results) {
       if (results.isNotEmpty && results.first != ConnectivityResult.none) {
         syncAll();
       }
     });
+
+    _periodicSyncTimer = Timer.periodic(const Duration(minutes: 5), (_) {
+      syncAll();
+    });
+
+    syncAll(); // Synchro immédiate
   }
 
-  void stopListening() {
+  void stopAutoSync() {
     _connectivitySubscription?.cancel();
+    _periodicSyncTimer?.cancel();
   }
 
   Future<void> syncAll() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
 
+    String pharmacieId;
     try {
       final profile =
           await _supabase.from('utilisateurs_profil').select().eq('id', user.id).single();
-      final pharmacieId = profile['pharmacie_id'] as String;
-
-      await _syncPharmacies(pharmacieId);
-      await _syncCategories(pharmacieId);
-      await _syncProduits(pharmacieId);
-      await _syncVentes(pharmacieId);
-      await _syncVenteDetails(pharmacieId);
-      await _syncFactures(pharmacieId);
-    } catch (e) {
-      debugPrint('[SyncService] syncAll error: $e');
+      pharmacieId = profile['pharmacie_id'] as String;
+    } catch (e, st) {
+      debugPrint('[SyncService] Failed to get user profile: $e\n$st');
+      return;
     }
+
+    try { await _syncPharmacies(pharmacieId); } catch (e, st) { debugPrint('[SyncService] Erreur _syncPharmacies: $e\n$st'); }
+    try { await _syncCategories(pharmacieId); } catch (e, st) { debugPrint('[SyncService] Erreur _syncCategories: $e\n$st'); }
+    try { await _syncProduits(pharmacieId); } catch (e, st) { debugPrint('[SyncService] Erreur _syncProduits: $e\n$st'); }
+    try { await _syncVentes(pharmacieId); } catch (e, st) { debugPrint('[SyncService] Erreur _syncVentes: $e\n$st'); }
+    try { await _syncVenteDetails(pharmacieId); } catch (e, st) { debugPrint('[SyncService] Erreur _syncVenteDetails: $e\n$st'); }
+    try { await _syncFactures(pharmacieId); } catch (e, st) { debugPrint('[SyncService] Erreur _syncFactures: $e\n$st'); }
   }
 
   // ─── PHARMACIES ─────────────────────────────────────────────────────────────
@@ -162,7 +172,6 @@ class SyncService {
         'quantite_stock': row.quantiteStock,
         'seuil_alerte': row.seuilAlerte,
         'date_peremption': row.datePeremption?.toIso8601String(),
-        'date_creation': row.dateCreation.toIso8601String(),
         'updated_at': row.updatedAt.toIso8601String(),
         'is_deleted': row.isDeleted,
       });
@@ -181,25 +190,31 @@ class SyncService {
     if (latest != null) query = query.gt('updated_at', latest.updatedAt.toIso8601String());
 
     final remoteRows = await query;
+    debugPrint('[SyncService] PULL Produits: ${remoteRows.length} lignes reçues de Supabase pour pharmacieId=$pharmacieId');
+
     for (final r in remoteRows) {
-      final local = await (_db.select(_db.produits)..where((t) => t.id.equals(r['id']))).getSingleOrNull();
-      final remoteUpdatedAt = DateTime.parse(r['updated_at'] as String);
-      if (local == null || remoteUpdatedAt.isAfter(local.updatedAt)) {
-        await _db.into(_db.produits).insertOnConflictUpdate(ProduitsCompanion.insert(
-          id: d.Value(r['id'] as String),
-          pharmacieId: r['pharmacie_id'] as String,
-          nom: r['nom'] as String,
-          categorieId: d.Value(r['categorie_id'] as String?),
-          prixAchat: (r['prix_achat'] as num).toDouble(),
-          prixVente: (r['prix_vente'] as num).toDouble(),
-          quantiteStock: r['quantite_stock'] as int,
-          seuilAlerte: r['seuil_alerte'] as int,
-          datePeremption: d.Value(r['date_peremption'] != null ? DateTime.parse(r['date_peremption'] as String) : null),
-          dateCreation: DateTime.parse(r['date_creation'] as String),
-          updatedAt: d.Value(remoteUpdatedAt),
-          isSynced: const d.Value(true),
-          isDeleted: d.Value(r['is_deleted'] as bool? ?? false),
-        ));
+      try {
+        final local = await (_db.select(_db.produits)..where((t) => t.id.equals(r['id']))).getSingleOrNull();
+        final remoteUpdatedAt = DateTime.parse(r['updated_at'] as String);
+        if (local == null || remoteUpdatedAt.isAfter(local.updatedAt)) {
+          await _db.into(_db.produits).insertOnConflictUpdate(ProduitsCompanion.insert(
+            id: d.Value(r['id'] as String),
+            pharmacieId: r['pharmacie_id'] as String,
+            nom: r['nom'] as String,
+            categorieId: d.Value(r['categorie_id'] as String?),
+            prixAchat: (r['prix_achat'] as num).toDouble(),
+            prixVente: (r['prix_vente'] as num).toDouble(),
+            quantiteStock: r['quantite_stock'] as int,
+            seuilAlerte: r['seuil_alerte'] as int,
+            datePeremption: d.Value(r['date_peremption'] != null ? DateTime.parse(r['date_peremption'] as String) : null),
+            updatedAt: d.Value(remoteUpdatedAt),
+            isSynced: const d.Value(true),
+            isDeleted: d.Value(r['is_deleted'] as bool? ?? false),
+          ));
+        }
+      } catch (e, st) {
+        debugPrint('[SyncService] Erreur mapping PULL Produit (ID: ${r['id']}): $e\n$st\nDonnées reçues: $r');
+        rethrow;
       }
     }
   }
@@ -266,6 +281,7 @@ class SyncService {
         'produit_id': row.produitId,
         'quantite': row.quantite,
         'prix_unitaire': row.prixUnitaire,
+        'prix_achat': row.prixAchat,
         'sous_total': row.sousTotal,
         'updated_at': row.updatedAt.toIso8601String(),
         'is_deleted': row.isDeleted,
@@ -297,6 +313,7 @@ class SyncService {
           produitId: r['produit_id'] as String,
           quantite: r['quantite'] as int,
           prixUnitaire: (r['prix_unitaire'] as num).toDouble(),
+          prixAchat: d.Value((r['prix_achat'] as num?)?.toDouble() ?? 0.0),
           sousTotal: (r['sous_total'] as num).toDouble(),
           updatedAt: d.Value(remoteUpdatedAt),
           isSynced: const d.Value(true),

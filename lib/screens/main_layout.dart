@@ -61,12 +61,6 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         selectedIcon: Icon(Icons.bar_chart),
         label: Text('Rapports'),
       ),
-      if (isPharmacien)
-        const NavigationRailDestination(
-          icon: Icon(Icons.settings_outlined),
-          selectedIcon: Icon(Icons.settings),
-          label: Text('Paramètres'),
-        ),
     ];
     return Scaffold(
       body: Row(
@@ -74,7 +68,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
           NavigationRail(
             extended: true,
             minExtendedWidth: 250,
-            selectedIndex: _selectedIndex,
+            selectedIndex: _selectedIndex < destinations.length ? _selectedIndex : null,
             onDestinationSelected: (int index) {
               setState(() {
                 _selectedIndex = index;
@@ -126,13 +120,12 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                       Text(user?.role.toUpperCase() ?? '', style: const TextStyle(fontSize: 10, color: Colors.grey), textAlign: TextAlign.center),
                       const SizedBox(height: 8),
                       IconButton(
-                        icon: const Icon(Icons.logout, color: Colors.red),
-                        tooltip: 'Déconnexion',
+                        icon: Icon(Icons.settings, color: _selectedIndex == 4 ? Colors.green : Colors.grey),
+                        tooltip: 'Paramètres',
                         onPressed: () {
-                          ref.read(authProvider.notifier).logout();
-                          Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const LoginScreen()),
-                          );
+                          setState(() {
+                            _selectedIndex = 4;
+                          });
                         },
                       ),
                     ],

@@ -519,17 +519,6 @@ class $ProduitsTable extends Produits with TableInfo<$ProduitsTable, Produit> {
         type: DriftSqlType.dateTime,
         requiredDuringInsert: false,
       );
-  static const VerificationMeta _dateCreationMeta = const VerificationMeta(
-    'dateCreation',
-  );
-  @override
-  late final GeneratedColumn<DateTime> dateCreation = GeneratedColumn<DateTime>(
-    'date_creation',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
   static const VerificationMeta _updatedAtMeta = const VerificationMeta(
     'updatedAt',
   );
@@ -583,7 +572,6 @@ class $ProduitsTable extends Produits with TableInfo<$ProduitsTable, Produit> {
     quantiteStock,
     seuilAlerte,
     datePeremption,
-    dateCreation,
     updatedAt,
     isSynced,
     isDeleted,
@@ -678,17 +666,6 @@ class $ProduitsTable extends Produits with TableInfo<$ProduitsTable, Produit> {
         ),
       );
     }
-    if (data.containsKey('date_creation')) {
-      context.handle(
-        _dateCreationMeta,
-        dateCreation.isAcceptableOrUnknown(
-          data['date_creation']!,
-          _dateCreationMeta,
-        ),
-      );
-    } else if (isInserting) {
-      context.missing(_dateCreationMeta);
-    }
     if (data.containsKey('updated_at')) {
       context.handle(
         _updatedAtMeta,
@@ -752,10 +729,6 @@ class $ProduitsTable extends Produits with TableInfo<$ProduitsTable, Produit> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}date_peremption'],
       ),
-      dateCreation: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}date_creation'],
-      )!,
       updatedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}updated_at'],
@@ -787,7 +760,6 @@ class Produit extends DataClass implements Insertable<Produit> {
   final int quantiteStock;
   final int seuilAlerte;
   final DateTime? datePeremption;
-  final DateTime dateCreation;
   final DateTime updatedAt;
   final bool isSynced;
   final bool isDeleted;
@@ -801,7 +773,6 @@ class Produit extends DataClass implements Insertable<Produit> {
     required this.quantiteStock,
     required this.seuilAlerte,
     this.datePeremption,
-    required this.dateCreation,
     required this.updatedAt,
     required this.isSynced,
     required this.isDeleted,
@@ -822,7 +793,6 @@ class Produit extends DataClass implements Insertable<Produit> {
     if (!nullToAbsent || datePeremption != null) {
       map['date_peremption'] = Variable<DateTime>(datePeremption);
     }
-    map['date_creation'] = Variable<DateTime>(dateCreation);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['is_synced'] = Variable<bool>(isSynced);
     map['is_deleted'] = Variable<bool>(isDeleted);
@@ -844,7 +814,6 @@ class Produit extends DataClass implements Insertable<Produit> {
       datePeremption: datePeremption == null && nullToAbsent
           ? const Value.absent()
           : Value(datePeremption),
-      dateCreation: Value(dateCreation),
       updatedAt: Value(updatedAt),
       isSynced: Value(isSynced),
       isDeleted: Value(isDeleted),
@@ -866,7 +835,6 @@ class Produit extends DataClass implements Insertable<Produit> {
       quantiteStock: serializer.fromJson<int>(json['quantiteStock']),
       seuilAlerte: serializer.fromJson<int>(json['seuilAlerte']),
       datePeremption: serializer.fromJson<DateTime?>(json['datePeremption']),
-      dateCreation: serializer.fromJson<DateTime>(json['dateCreation']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
       isDeleted: serializer.fromJson<bool>(json['isDeleted']),
@@ -885,7 +853,6 @@ class Produit extends DataClass implements Insertable<Produit> {
       'quantiteStock': serializer.toJson<int>(quantiteStock),
       'seuilAlerte': serializer.toJson<int>(seuilAlerte),
       'datePeremption': serializer.toJson<DateTime?>(datePeremption),
-      'dateCreation': serializer.toJson<DateTime>(dateCreation),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'isSynced': serializer.toJson<bool>(isSynced),
       'isDeleted': serializer.toJson<bool>(isDeleted),
@@ -902,7 +869,6 @@ class Produit extends DataClass implements Insertable<Produit> {
     int? quantiteStock,
     int? seuilAlerte,
     Value<DateTime?> datePeremption = const Value.absent(),
-    DateTime? dateCreation,
     DateTime? updatedAt,
     bool? isSynced,
     bool? isDeleted,
@@ -918,7 +884,6 @@ class Produit extends DataClass implements Insertable<Produit> {
     datePeremption: datePeremption.present
         ? datePeremption.value
         : this.datePeremption,
-    dateCreation: dateCreation ?? this.dateCreation,
     updatedAt: updatedAt ?? this.updatedAt,
     isSynced: isSynced ?? this.isSynced,
     isDeleted: isDeleted ?? this.isDeleted,
@@ -944,9 +909,6 @@ class Produit extends DataClass implements Insertable<Produit> {
       datePeremption: data.datePeremption.present
           ? data.datePeremption.value
           : this.datePeremption,
-      dateCreation: data.dateCreation.present
-          ? data.dateCreation.value
-          : this.dateCreation,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
       isDeleted: data.isDeleted.present ? data.isDeleted.value : this.isDeleted,
@@ -965,7 +927,6 @@ class Produit extends DataClass implements Insertable<Produit> {
           ..write('quantiteStock: $quantiteStock, ')
           ..write('seuilAlerte: $seuilAlerte, ')
           ..write('datePeremption: $datePeremption, ')
-          ..write('dateCreation: $dateCreation, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted')
@@ -984,7 +945,6 @@ class Produit extends DataClass implements Insertable<Produit> {
     quantiteStock,
     seuilAlerte,
     datePeremption,
-    dateCreation,
     updatedAt,
     isSynced,
     isDeleted,
@@ -1002,7 +962,6 @@ class Produit extends DataClass implements Insertable<Produit> {
           other.quantiteStock == this.quantiteStock &&
           other.seuilAlerte == this.seuilAlerte &&
           other.datePeremption == this.datePeremption &&
-          other.dateCreation == this.dateCreation &&
           other.updatedAt == this.updatedAt &&
           other.isSynced == this.isSynced &&
           other.isDeleted == this.isDeleted);
@@ -1018,7 +977,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
   final Value<int> quantiteStock;
   final Value<int> seuilAlerte;
   final Value<DateTime?> datePeremption;
-  final Value<DateTime> dateCreation;
   final Value<DateTime> updatedAt;
   final Value<bool> isSynced;
   final Value<bool> isDeleted;
@@ -1033,7 +991,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
     this.quantiteStock = const Value.absent(),
     this.seuilAlerte = const Value.absent(),
     this.datePeremption = const Value.absent(),
-    this.dateCreation = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -1049,7 +1006,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
     required int quantiteStock,
     required int seuilAlerte,
     this.datePeremption = const Value.absent(),
-    required DateTime dateCreation,
     this.updatedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
     this.isDeleted = const Value.absent(),
@@ -1059,8 +1015,7 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
        prixAchat = Value(prixAchat),
        prixVente = Value(prixVente),
        quantiteStock = Value(quantiteStock),
-       seuilAlerte = Value(seuilAlerte),
-       dateCreation = Value(dateCreation);
+       seuilAlerte = Value(seuilAlerte);
   static Insertable<Produit> custom({
     Expression<String>? id,
     Expression<String>? pharmacieId,
@@ -1071,7 +1026,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
     Expression<int>? quantiteStock,
     Expression<int>? seuilAlerte,
     Expression<DateTime>? datePeremption,
-    Expression<DateTime>? dateCreation,
     Expression<DateTime>? updatedAt,
     Expression<bool>? isSynced,
     Expression<bool>? isDeleted,
@@ -1087,7 +1041,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
       if (quantiteStock != null) 'quantite_stock': quantiteStock,
       if (seuilAlerte != null) 'seuil_alerte': seuilAlerte,
       if (datePeremption != null) 'date_peremption': datePeremption,
-      if (dateCreation != null) 'date_creation': dateCreation,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isSynced != null) 'is_synced': isSynced,
       if (isDeleted != null) 'is_deleted': isDeleted,
@@ -1105,7 +1058,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
     Value<int>? quantiteStock,
     Value<int>? seuilAlerte,
     Value<DateTime?>? datePeremption,
-    Value<DateTime>? dateCreation,
     Value<DateTime>? updatedAt,
     Value<bool>? isSynced,
     Value<bool>? isDeleted,
@@ -1121,7 +1073,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
       quantiteStock: quantiteStock ?? this.quantiteStock,
       seuilAlerte: seuilAlerte ?? this.seuilAlerte,
       datePeremption: datePeremption ?? this.datePeremption,
-      dateCreation: dateCreation ?? this.dateCreation,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
       isDeleted: isDeleted ?? this.isDeleted,
@@ -1159,9 +1110,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
     if (datePeremption.present) {
       map['date_peremption'] = Variable<DateTime>(datePeremption.value);
     }
-    if (dateCreation.present) {
-      map['date_creation'] = Variable<DateTime>(dateCreation.value);
-    }
     if (updatedAt.present) {
       map['updated_at'] = Variable<DateTime>(updatedAt.value);
     }
@@ -1189,7 +1137,6 @@ class ProduitsCompanion extends UpdateCompanion<Produit> {
           ..write('quantiteStock: $quantiteStock, ')
           ..write('seuilAlerte: $seuilAlerte, ')
           ..write('datePeremption: $datePeremption, ')
-          ..write('dateCreation: $dateCreation, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSynced: $isSynced, ')
           ..write('isDeleted: $isDeleted, ')
@@ -2265,6 +2212,18 @@ class $VenteDetailsTable extends VenteDetails
     type: DriftSqlType.double,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _prixAchatMeta = const VerificationMeta(
+    'prixAchat',
+  );
+  @override
+  late final GeneratedColumn<double> prixAchat = GeneratedColumn<double>(
+    'prix_achat',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0.0),
+  );
   static const VerificationMeta _sousTotalMeta = const VerificationMeta(
     'sousTotal',
   );
@@ -2326,6 +2285,7 @@ class $VenteDetailsTable extends VenteDetails
     produitId,
     quantite,
     prixUnitaire,
+    prixAchat,
     sousTotal,
     updatedAt,
     isSynced,
@@ -2392,6 +2352,12 @@ class $VenteDetailsTable extends VenteDetails
     } else if (isInserting) {
       context.missing(_prixUnitaireMeta);
     }
+    if (data.containsKey('prix_achat')) {
+      context.handle(
+        _prixAchatMeta,
+        prixAchat.isAcceptableOrUnknown(data['prix_achat']!, _prixAchatMeta),
+      );
+    }
     if (data.containsKey('sous_total')) {
       context.handle(
         _sousTotalMeta,
@@ -2451,6 +2417,10 @@ class $VenteDetailsTable extends VenteDetails
         DriftSqlType.double,
         data['${effectivePrefix}prix_unitaire'],
       )!,
+      prixAchat: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}prix_achat'],
+      )!,
       sousTotal: attachedDatabase.typeMapping.read(
         DriftSqlType.double,
         data['${effectivePrefix}sous_total'],
@@ -2483,6 +2453,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
   final String produitId;
   final int quantite;
   final double prixUnitaire;
+  final double prixAchat;
   final double sousTotal;
   final DateTime updatedAt;
   final bool isSynced;
@@ -2494,6 +2465,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
     required this.produitId,
     required this.quantite,
     required this.prixUnitaire,
+    required this.prixAchat,
     required this.sousTotal,
     required this.updatedAt,
     required this.isSynced,
@@ -2508,6 +2480,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
     map['produit_id'] = Variable<String>(produitId);
     map['quantite'] = Variable<int>(quantite);
     map['prix_unitaire'] = Variable<double>(prixUnitaire);
+    map['prix_achat'] = Variable<double>(prixAchat);
     map['sous_total'] = Variable<double>(sousTotal);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['is_synced'] = Variable<bool>(isSynced);
@@ -2523,6 +2496,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
       produitId: Value(produitId),
       quantite: Value(quantite),
       prixUnitaire: Value(prixUnitaire),
+      prixAchat: Value(prixAchat),
       sousTotal: Value(sousTotal),
       updatedAt: Value(updatedAt),
       isSynced: Value(isSynced),
@@ -2542,6 +2516,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
       produitId: serializer.fromJson<String>(json['produitId']),
       quantite: serializer.fromJson<int>(json['quantite']),
       prixUnitaire: serializer.fromJson<double>(json['prixUnitaire']),
+      prixAchat: serializer.fromJson<double>(json['prixAchat']),
       sousTotal: serializer.fromJson<double>(json['sousTotal']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
@@ -2558,6 +2533,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
       'produitId': serializer.toJson<String>(produitId),
       'quantite': serializer.toJson<int>(quantite),
       'prixUnitaire': serializer.toJson<double>(prixUnitaire),
+      'prixAchat': serializer.toJson<double>(prixAchat),
       'sousTotal': serializer.toJson<double>(sousTotal),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'isSynced': serializer.toJson<bool>(isSynced),
@@ -2572,6 +2548,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
     String? produitId,
     int? quantite,
     double? prixUnitaire,
+    double? prixAchat,
     double? sousTotal,
     DateTime? updatedAt,
     bool? isSynced,
@@ -2583,6 +2560,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
     produitId: produitId ?? this.produitId,
     quantite: quantite ?? this.quantite,
     prixUnitaire: prixUnitaire ?? this.prixUnitaire,
+    prixAchat: prixAchat ?? this.prixAchat,
     sousTotal: sousTotal ?? this.sousTotal,
     updatedAt: updatedAt ?? this.updatedAt,
     isSynced: isSynced ?? this.isSynced,
@@ -2600,6 +2578,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
       prixUnitaire: data.prixUnitaire.present
           ? data.prixUnitaire.value
           : this.prixUnitaire,
+      prixAchat: data.prixAchat.present ? data.prixAchat.value : this.prixAchat,
       sousTotal: data.sousTotal.present ? data.sousTotal.value : this.sousTotal,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       isSynced: data.isSynced.present ? data.isSynced.value : this.isSynced,
@@ -2616,6 +2595,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
           ..write('produitId: $produitId, ')
           ..write('quantite: $quantite, ')
           ..write('prixUnitaire: $prixUnitaire, ')
+          ..write('prixAchat: $prixAchat, ')
           ..write('sousTotal: $sousTotal, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSynced: $isSynced, ')
@@ -2632,6 +2612,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
     produitId,
     quantite,
     prixUnitaire,
+    prixAchat,
     sousTotal,
     updatedAt,
     isSynced,
@@ -2647,6 +2628,7 @@ class VenteDetail extends DataClass implements Insertable<VenteDetail> {
           other.produitId == this.produitId &&
           other.quantite == this.quantite &&
           other.prixUnitaire == this.prixUnitaire &&
+          other.prixAchat == this.prixAchat &&
           other.sousTotal == this.sousTotal &&
           other.updatedAt == this.updatedAt &&
           other.isSynced == this.isSynced &&
@@ -2660,6 +2642,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
   final Value<String> produitId;
   final Value<int> quantite;
   final Value<double> prixUnitaire;
+  final Value<double> prixAchat;
   final Value<double> sousTotal;
   final Value<DateTime> updatedAt;
   final Value<bool> isSynced;
@@ -2672,6 +2655,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
     this.produitId = const Value.absent(),
     this.quantite = const Value.absent(),
     this.prixUnitaire = const Value.absent(),
+    this.prixAchat = const Value.absent(),
     this.sousTotal = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -2685,6 +2669,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
     required String produitId,
     required int quantite,
     required double prixUnitaire,
+    this.prixAchat = const Value.absent(),
     required double sousTotal,
     this.updatedAt = const Value.absent(),
     this.isSynced = const Value.absent(),
@@ -2703,6 +2688,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
     Expression<String>? produitId,
     Expression<int>? quantite,
     Expression<double>? prixUnitaire,
+    Expression<double>? prixAchat,
     Expression<double>? sousTotal,
     Expression<DateTime>? updatedAt,
     Expression<bool>? isSynced,
@@ -2716,6 +2702,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
       if (produitId != null) 'produit_id': produitId,
       if (quantite != null) 'quantite': quantite,
       if (prixUnitaire != null) 'prix_unitaire': prixUnitaire,
+      if (prixAchat != null) 'prix_achat': prixAchat,
       if (sousTotal != null) 'sous_total': sousTotal,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (isSynced != null) 'is_synced': isSynced,
@@ -2731,6 +2718,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
     Value<String>? produitId,
     Value<int>? quantite,
     Value<double>? prixUnitaire,
+    Value<double>? prixAchat,
     Value<double>? sousTotal,
     Value<DateTime>? updatedAt,
     Value<bool>? isSynced,
@@ -2744,6 +2732,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
       produitId: produitId ?? this.produitId,
       quantite: quantite ?? this.quantite,
       prixUnitaire: prixUnitaire ?? this.prixUnitaire,
+      prixAchat: prixAchat ?? this.prixAchat,
       sousTotal: sousTotal ?? this.sousTotal,
       updatedAt: updatedAt ?? this.updatedAt,
       isSynced: isSynced ?? this.isSynced,
@@ -2773,6 +2762,9 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
     if (prixUnitaire.present) {
       map['prix_unitaire'] = Variable<double>(prixUnitaire.value);
     }
+    if (prixAchat.present) {
+      map['prix_achat'] = Variable<double>(prixAchat.value);
+    }
     if (sousTotal.present) {
       map['sous_total'] = Variable<double>(sousTotal.value);
     }
@@ -2800,6 +2792,7 @@ class VenteDetailsCompanion extends UpdateCompanion<VenteDetail> {
           ..write('produitId: $produitId, ')
           ..write('quantite: $quantite, ')
           ..write('prixUnitaire: $prixUnitaire, ')
+          ..write('prixAchat: $prixAchat, ')
           ..write('sousTotal: $sousTotal, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('isSynced: $isSynced, ')
@@ -4105,7 +4098,6 @@ typedef $$ProduitsTableCreateCompanionBuilder =
       required int quantiteStock,
       required int seuilAlerte,
       Value<DateTime?> datePeremption,
-      required DateTime dateCreation,
       Value<DateTime> updatedAt,
       Value<bool> isSynced,
       Value<bool> isDeleted,
@@ -4122,7 +4114,6 @@ typedef $$ProduitsTableUpdateCompanionBuilder =
       Value<int> quantiteStock,
       Value<int> seuilAlerte,
       Value<DateTime?> datePeremption,
-      Value<DateTime> dateCreation,
       Value<DateTime> updatedAt,
       Value<bool> isSynced,
       Value<bool> isDeleted,
@@ -4217,11 +4208,6 @@ class $$ProduitsTableFilterComposer
 
   ColumnFilters<DateTime> get datePeremption => $composableBuilder(
     column: $table.datePeremption,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get dateCreation => $composableBuilder(
-    column: $table.dateCreation,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4338,11 +4324,6 @@ class $$ProduitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
-  ColumnOrderings<DateTime> get dateCreation => $composableBuilder(
-    column: $table.dateCreation,
-    builder: (column) => ColumnOrderings(column),
-  );
-
   ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
     column: $table.updatedAt,
     builder: (column) => ColumnOrderings(column),
@@ -4420,11 +4401,6 @@ class $$ProduitsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get datePeremption => $composableBuilder(
     column: $table.datePeremption,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get dateCreation => $composableBuilder(
-    column: $table.dateCreation,
     builder: (column) => column,
   );
 
@@ -4523,7 +4499,6 @@ class $$ProduitsTableTableManager
                 Value<int> quantiteStock = const Value.absent(),
                 Value<int> seuilAlerte = const Value.absent(),
                 Value<DateTime?> datePeremption = const Value.absent(),
-                Value<DateTime> dateCreation = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -4538,7 +4513,6 @@ class $$ProduitsTableTableManager
                 quantiteStock: quantiteStock,
                 seuilAlerte: seuilAlerte,
                 datePeremption: datePeremption,
-                dateCreation: dateCreation,
                 updatedAt: updatedAt,
                 isSynced: isSynced,
                 isDeleted: isDeleted,
@@ -4555,7 +4529,6 @@ class $$ProduitsTableTableManager
                 required int quantiteStock,
                 required int seuilAlerte,
                 Value<DateTime?> datePeremption = const Value.absent(),
-                required DateTime dateCreation,
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
                 Value<bool> isDeleted = const Value.absent(),
@@ -4570,7 +4543,6 @@ class $$ProduitsTableTableManager
                 quantiteStock: quantiteStock,
                 seuilAlerte: seuilAlerte,
                 datePeremption: datePeremption,
-                dateCreation: dateCreation,
                 updatedAt: updatedAt,
                 isSynced: isSynced,
                 isDeleted: isDeleted,
@@ -5372,6 +5344,7 @@ typedef $$VenteDetailsTableCreateCompanionBuilder =
       required String produitId,
       required int quantite,
       required double prixUnitaire,
+      Value<double> prixAchat,
       required double sousTotal,
       Value<DateTime> updatedAt,
       Value<bool> isSynced,
@@ -5386,6 +5359,7 @@ typedef $$VenteDetailsTableUpdateCompanionBuilder =
       Value<String> produitId,
       Value<int> quantite,
       Value<double> prixUnitaire,
+      Value<double> prixAchat,
       Value<double> sousTotal,
       Value<DateTime> updatedAt,
       Value<bool> isSynced,
@@ -5461,6 +5435,11 @@ class $$VenteDetailsTableFilterComposer
 
   ColumnFilters<double> get prixUnitaire => $composableBuilder(
     column: $table.prixUnitaire,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get prixAchat => $composableBuilder(
+    column: $table.prixAchat,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -5560,6 +5539,11 @@ class $$VenteDetailsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<double> get prixAchat => $composableBuilder(
+    column: $table.prixAchat,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<double> get sousTotal => $composableBuilder(
     column: $table.sousTotal,
     builder: (column) => ColumnOrderings(column),
@@ -5651,6 +5635,9 @@ class $$VenteDetailsTableAnnotationComposer
     column: $table.prixUnitaire,
     builder: (column) => column,
   );
+
+  GeneratedColumn<double> get prixAchat =>
+      $composableBuilder(column: $table.prixAchat, builder: (column) => column);
 
   GeneratedColumn<double> get sousTotal =>
       $composableBuilder(column: $table.sousTotal, builder: (column) => column);
@@ -5745,6 +5732,7 @@ class $$VenteDetailsTableTableManager
                 Value<String> produitId = const Value.absent(),
                 Value<int> quantite = const Value.absent(),
                 Value<double> prixUnitaire = const Value.absent(),
+                Value<double> prixAchat = const Value.absent(),
                 Value<double> sousTotal = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
@@ -5757,6 +5745,7 @@ class $$VenteDetailsTableTableManager
                 produitId: produitId,
                 quantite: quantite,
                 prixUnitaire: prixUnitaire,
+                prixAchat: prixAchat,
                 sousTotal: sousTotal,
                 updatedAt: updatedAt,
                 isSynced: isSynced,
@@ -5771,6 +5760,7 @@ class $$VenteDetailsTableTableManager
                 required String produitId,
                 required int quantite,
                 required double prixUnitaire,
+                Value<double> prixAchat = const Value.absent(),
                 required double sousTotal,
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> isSynced = const Value.absent(),
@@ -5783,6 +5773,7 @@ class $$VenteDetailsTableTableManager
                 produitId: produitId,
                 quantite: quantite,
                 prixUnitaire: prixUnitaire,
+                prixAchat: prixAchat,
                 sousTotal: sousTotal,
                 updatedAt: updatedAt,
                 isSynced: isSynced,

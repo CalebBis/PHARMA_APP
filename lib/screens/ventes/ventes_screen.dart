@@ -37,6 +37,7 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
         produitId: drift.Value(item.produit.id),
         quantite: drift.Value(item.quantite),
         prixUnitaire: drift.Value(item.produit.prixVente),
+        prixAchat: drift.Value(item.produit.prixAchat),
         sousTotal: drift.Value(item.sousTotal),
       );
     }).toList();
@@ -176,6 +177,8 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
                                         color: isOutOfStock ? Colors.grey : Colors.black,
                                       ),
                                       textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                     const SizedBox(height: 8),
                                     Text(CurrencyFormatter.format(p.prixVente), style: const TextStyle(color: Colors.green, fontSize: 16)),
@@ -274,6 +277,7 @@ class _VentesScreenState extends ConsumerState<VentesScreen> {
                           ),
                           const SizedBox(height: 16),
                           DropdownButtonFormField<String>(
+                            isExpanded: true,
                             value: _modePaiement,
                             decoration: const InputDecoration(labelText: 'Mode de paiement', border: OutlineInputBorder()),
                             items: const [

@@ -29,7 +29,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -44,6 +44,14 @@ class AppDatabase extends _$AppDatabase {
             await m.deleteTable(table.actualTableName);
           }
           await m.createAll();
+        } else {
+          if (from < 4) {
+            await m.addColumn(venteDetails, venteDetails.prixAchat);
+            await customStatement('UPDATE vente_details SET prix_achat = (SELECT prix_achat FROM produits WHERE id = vente_details.produit_id)');
+          }
+          if (from < 5) {
+            await m.alterTable(TableMigration(produits));
+          }
         }
       },
     );

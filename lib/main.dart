@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'screens/login_screen.dart';
+import 'screens/main_layout.dart';
+import 'providers/auth_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,11 +16,13 @@ void main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+
     return MaterialApp(
       title: 'Pharmacie POS',
       debugShowCheckedModeBanner: false,
@@ -27,7 +31,7 @@ class MyApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto', // Default font
       ),
-      home: const LoginScreen (), // 
+      home: user == null ? const LoginScreen() : const MainLayout(),
     );
   }
 }

@@ -179,7 +179,7 @@ class VentesRepository {
     // Benefice (prixVente - prixAchat) * quantite
     final beneficeQuery = await _db.customSelect(
       '''
-      SELECT SUM((p.prix_vente - p.prix_achat) * d.quantite) as benefice
+      SELECT SUM((d.prix_unitaire - d.prix_achat) * d.quantite) as benefice
       FROM ventes v
       JOIN vente_details d ON d.vente_id = v.id
       JOIN produits p ON p.id = d.produit_id

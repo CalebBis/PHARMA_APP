@@ -9,7 +9,8 @@ import '../providers/database_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/text_formatters.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sp;
-
+import '../widgets/confirm_dialog.dart';
+import 'login_screen.dart';
 class ParametresScreen extends ConsumerStatefulWidget {
   const ParametresScreen({super.key});
 
@@ -19,6 +20,23 @@ class ParametresScreen extends ConsumerStatefulWidget {
 
 class _ParametresScreenState extends ConsumerState<ParametresScreen> {
   bool _isLoading = false;
+
+  Future<void> _confirmerDeconnexion() async {
+    final confirmer = await ConfirmDialog.show(
+      context: context,
+      title: 'Déconnexion',
+      message: 'Êtes-vous sûr de vouloir vous déconnecter ?',
+      confirmText: 'Se déconnecter',
+      confirmColor: Colors.red,
+    );
+
+    if (confirmer == true && mounted) {
+      ref.read(authProvider.notifier).logout();
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+    }
+  }
 
   Future<void> _backupDatabase() async {
     setState(() => _isLoading = true);
@@ -272,10 +290,6 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
   @override
   Widget build(BuildContext context) {
     final isPharmacien = ref.read(authProvider.notifier).isPharmacien;
-    if (!isPharmacien) {
-      return const Center(child: Text('Accès refusé.'));
-    }
-
     final pharmacieAsync = ref.watch(currentPharmacieProvider);
 
     return Scaffold(
@@ -288,7 +302,8 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
         : ListView(
             padding: const EdgeInsets.all(24.0),
             children: [
-              const Text('Informations de la Pharmacie', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+              if (isPharmacien) ...[
+                const Text('Informations de la Pharmacie', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
               const Divider(),
               const SizedBox(height: 16),
               Card(
@@ -380,6 +395,27 @@ class _ParametresScreenState extends ConsumerState<ParametresScreen> {
                       onPressed: _creerVendeuse,
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white),
                       child: const Text('Ajouter'),
+                    ),
+                  ),
+                ),
+              ),
+              ],
+              const SizedBox(height: 32),
+              const Text('Session', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green)),
+              const Divider(),
+              const SizedBox(height: 16),
+              Card(
+                color: Colors.white,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: ListTile(
+                    leading: const Icon(Icons.logout, color: Colors.red, size: 40),
+                    title: const Text('Se déconnecter', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text('Fermer votre session actuelle.'),
+                    trailing: ElevatedButton(
+                      onPressed: _confirmerDeconnexion,
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                      child: const Text('Se déconnecter'),
                     ),
                   ),
                 ),

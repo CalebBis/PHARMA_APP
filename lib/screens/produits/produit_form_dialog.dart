@@ -68,7 +68,6 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
         quantiteStock: drift.Value(pStock),
         seuilAlerte: drift.Value(pSeuil),
         datePeremption: drift.Value(_selectedDatePeremption),
-        dateCreation: drift.Value(DateTime.now()),
       ));
     } else {
       // Update
@@ -128,19 +127,19 @@ class _ProduitFormDialogState extends ConsumerState<ProduitFormDialog> {
                       child: categoriesAsync.when(
                         data: (categories) {
                           return DropdownButtonFormField<String>(
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Catégorie *',
+                              border: OutlineInputBorder(),
+                            ),
                             value: _selectedCategoryId,
-                            decoration: const InputDecoration(labelText: 'Catégorie'),
-                            items: categories.map((cat) {
-                              return DropdownMenuItem<String>(
-                                value: cat.id,
-                                child: Text(cat.nom),
-                              );
-                            }).toList(),
+                            items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nom, overflow: TextOverflow.ellipsis))).toList(),
                             onChanged: (val) {
                               setState(() {
                                 _selectedCategoryId = val;
                               });
                             },
+                            validator: (val) => val == null ? 'Veuillez choisir une catégorie' : null,
                           );
                         },
                         loading: () => const CircularProgressIndicator(),

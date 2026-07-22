@@ -72,6 +72,7 @@ class ProduitsScreen extends ConsumerWidget {
                   child: categoriesAsync.when(
                     data: (categories) {
                       return DropdownButtonFormField<String?>(
+                        isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Catégorie',
                           border: OutlineInputBorder(),
@@ -80,10 +81,13 @@ class ProduitsScreen extends ConsumerWidget {
                         value: filter.categoryId,
                         items: [
                           const DropdownMenuItem(value: null, child: Text('Toutes')),
-                          ...categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nom))),
+                          ...categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.nom, overflow: TextOverflow.ellipsis))),
                         ],
                         onChanged: (val) {
-                          ref.read(produitFilterProvider.notifier).state = filter.copyWith(categoryId: val);
+                          ref.read(produitFilterProvider.notifier).state = filter.copyWith(
+                            categoryId: val,
+                            clearCategoryId: val == null,
+                          );
                         },
                       );
                     },
@@ -124,8 +128,8 @@ class ProduitsScreen extends ConsumerWidget {
                   child: GridView.builder(
                     padding: const EdgeInsets.all(16.0),
                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 300,
-                      childAspectRatio: 0.8,
+                      maxCrossAxisExtent: 320,
+                      mainAxisExtent: 310,
                       crossAxisSpacing: 16,
                       mainAxisSpacing: 16,
                     ),
@@ -135,115 +139,219 @@ class ProduitsScreen extends ConsumerWidget {
                       final isLowStock = p.quantiteStock <= p.seuilAlerte;
                       final isExpiringSoon = p.datePeremption != null && 
                           p.datePeremption!.isBefore(DateTime.now().add(const Duration(days: 30)));
+                      
+                      final category = categoriesAsync.value?.where((c) => c.id == p.categorieId).firstOrNull;
+                      final categoryName = category?.nom ?? 'Non catégorisé';
+                      
+                      final int maxStock = p.quantiteStock > 100 ? p.quantiteStock : 100;
+                      final double stockProgress = (p.quantiteStock / maxStock).clamp(0.0, 1.0);
+                      
+                      final bool hasDate = p.datePeremption != null;
+                      final Color peremptionColor = !hasDate ? Colors.grey.shade700 : (isExpiringSoon ? Colors.orange.shade800 : Colors.green.shade800);
+                      final Color peremptionBgColor = !hasDate ? Colors.grey.shade100 : (isExpiringSoon ? Colors.orange.shade50 : Colors.green.shade50);
+                      final Color peremptionBorderColor = !hasDate ? Colors.grey.shade300 : (isExpiringSoon ? Colors.orange.shade300 : Colors.green.shade300);
 
                       return Card(
-                        elevation: 4,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: BorderSide(color: Colors.grey.shade200),
+                        ),
                         clipBehavior: Clip.antiAlias,
-                        child: Stack(
+                        color: Colors.white,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Header image / color
-                                Container(
-                                  height: 80,
-                                  width: double.infinity,
-                                  color: Colors.green.shade100,
-                                  child: Icon(Icons.medication, size: 48, color: Colors.green.shade700),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.all(12.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        p.nom,
-                                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text('Stock: ${p.quantiteStock}', style: TextStyle(fontWeight: FontWeight.bold, color: isLowStock ? Colors.red : Colors.black)),
-                                          Text(CurrencyFormatter.format(p.prixVente), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text('Achat: ${CurrencyFormatter.format(p.prixAchat)}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        p.datePeremption != null ? 'Péremption: ${DateFormat('dd/MM/yyyy').format(p.datePeremption!)}' : 'Aucune date de péremption',
-                                        style: TextStyle(color: isExpiringSoon ? Colors.red : Colors.grey, fontSize: 12),
-                                      ),
-                                    ],
+                            // Header image / color
+                            Container(
+                              height: 60,
+                              color: Colors.green.shade100,
+                              child: Icon(Icons.medication, size: 36, color: Colors.green.shade600),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                children: [
+                                  // Title & Category
+                                  Text(
+                                    p.nom,
+                                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.center,
                                   ),
-                                ),
-                                const Spacer(),
-                                if (isPharmacien)
-                                  Container(
-                                    color: Colors.grey.shade50,
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      'Catégorie: $categoryName',
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                      textAlign: TextAlign.center,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    // Row Stock / Prix
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        TextButton.icon(
-                                          icon: const Icon(Icons.edit, color: Colors.blue, size: 16),
-                                          label: const Text('Modifier', style: TextStyle(color: Colors.blue)),
-                                          onPressed: () {
-                                            showDialog(
-                                              context: context,
-                                              builder: (ctx) => ProduitFormDialog(produitToEdit: p),
-                                            );
-                                          },
+                                        // Stock Block
+                                        Expanded(
+                                          flex: 5,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              border: Border.all(color: Colors.orange.shade200),
+                                              borderRadius: BorderRadius.circular(8),
+                                              color: Colors.white,
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                RichText(
+                                                  text: TextSpan(
+                                                    style: const TextStyle(color: Colors.black, fontSize: 11),
+                                                    children: [
+                                                      const TextSpan(text: 'Stock: ', style: TextStyle(fontWeight: FontWeight.bold)),
+                                                      TextSpan(text: '${p.quantiteStock} / $maxStock'),
+                                                    ],
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                ClipRRect(
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  child: LinearProgressIndicator(
+                                                    value: stockProgress,
+                                                    backgroundColor: Colors.orange.shade100,
+                                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                                      isLowStock ? Colors.orange : Colors.orange.shade300,
+                                                    ),
+                                                    minHeight: 6,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
-                                        TextButton.icon(
-                                          icon: const Icon(Icons.delete, color: Colors.red, size: 16),
-                                          label: const Text('Supprimer', style: TextStyle(color: Colors.red)),
-                                          onPressed: () async {
-                                            final confirm = await showDialog<bool>(
-                                              context: context,
-                                              builder: (ctx) => AlertDialog(
-                                                title: const Text('Confirmation'),
-                                                content: Text('Voulez-vous vraiment supprimer "${p.nom}" ?'),
-                                                actions: [
-                                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Non')),
-                                                  TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Oui')),
-                                                ],
-                                              ),
-                                            );
-                                            if (confirm == true) {
-                                              ref.read(produitsRepositoryProvider).supprimerProduit(p);
-                                            }
-                                          },
+                                        const SizedBox(width: 8),
+                                        // Prix Block
+                                        Expanded(
+                                          flex: 4,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade100,
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                const Text('Prix Vente:', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.black87)),
+                                                const SizedBox(height: 4),
+                                                FittedBox(
+                                                  fit: BoxFit.scaleDown,
+                                                  alignment: Alignment.centerLeft,
+                                                  child: Text(
+                                                    CurrencyFormatter.format(p.prixVente),
+                                                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                              ],
-                            ),
-                            // Badges
-                            if (isLowStock || isExpiringSoon)
-                              Positioned(
-                                top: 8,
-                                right: 8,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                    const SizedBox(height: 12),
+                                    // Péremption Block
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                                      decoration: BoxDecoration(
+                                        color: peremptionBgColor,
+                                        border: Border.all(color: peremptionBorderColor),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          if (hasDate && isExpiringSoon)
+                                            Icon(Icons.warning_amber_rounded, color: peremptionColor, size: 16),
+                                          if (hasDate && isExpiringSoon)
+                                            const SizedBox(width: 4),
+                                          Flexible(
+                                            child: Text(
+                                              hasDate 
+                                                ? 'Péremption: ${DateFormat('dd/MM/yyyy').format(p.datePeremption!)}' 
+                                                : 'Aucune date de péremption',
+                                              style: TextStyle(
+                                                color: peremptionColor,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const Spacer(),
+                            // Action Buttons
+                            if (isPharmacien)
+                              Container(
+                                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                                child: Row(
                                   children: [
-                                    if (isLowStock)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(12)),
-                                        child: const Text('Stock Bas', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        icon: const Icon(Icons.edit, size: 16),
+                                        label: const Text('Éditer', style: TextStyle(fontSize: 12)),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.blue.shade700,
+                                          side: BorderSide(color: Colors.blue.shade200),
+                                          backgroundColor: Colors.blue.shade50,
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: context,
+                                            builder: (ctx) => ProduitFormDialog(produitToEdit: p),
+                                          );
+                                        },
                                       ),
-                                    if (isLowStock && isExpiringSoon) const SizedBox(height: 4),
-                                    if (isExpiringSoon)
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                        decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(12)),
-                                        child: const Text('Périme bientôt', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        icon: const Icon(Icons.delete, size: 16),
+                                        label: const Text('Supprimer', style: TextStyle(fontSize: 12)),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.red.shade700,
+                                          side: BorderSide(color: Colors.red.shade200),
+                                          backgroundColor: Colors.red.shade50,
+                                          padding: const EdgeInsets.symmetric(vertical: 8),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                        ),
+                                        onPressed: () async {
+                                          final confirm = await showDialog<bool>(
+                                            context: context,
+                                            builder: (ctx) => AlertDialog(
+                                              title: const Text('Confirmation'),
+                                              content: Text('Voulez-vous vraiment supprimer "${p.nom}" ?'),
+                                              actions: [
+                                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Non')),
+                                                TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Oui')),
+                                              ],
+                                            ),
+                                          );
+                                          if (confirm == true) {
+                                            ref.read(produitsRepositoryProvider).supprimerProduit(p);
+                                          }
+                                        },
                                       ),
+                                    ),
                                   ],
                                 ),
                               ),

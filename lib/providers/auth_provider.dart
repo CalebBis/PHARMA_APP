@@ -13,17 +13,24 @@ class AuthNotifier extends StateNotifier<Utilisateur?> {
   final AuthService _authService;
   final SyncService _syncService;
 
-  AuthNotifier(this._authService, this._syncService) : super(null);
+  AuthNotifier(this._authService, this._syncService) : super(null) {
+    _init();
+  }
+
+  Future<void> _init() async {
+    final user = await _authService.getCurrentUtilisateur();
+    if (user != null) {
+      setUtilisateur(user);
+    }
+  }
 
   void setUtilisateur(Utilisateur utilisateur) {
     state = utilisateur;
-    // Déclenche la synchro initiale et démarre l'écoute de connectivité
-    _syncService.syncAll();
-    _syncService.startListening();
+    _syncService.startAutoSync();
   }
 
   Future<void> logout() async {
-    _syncService.stopListening();
+    _syncService.stopAutoSync();
     // Pousse les données en attente avant déconnexion
     await _syncService.syncAll();
     await _authService.logout();

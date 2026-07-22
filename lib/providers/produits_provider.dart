@@ -18,12 +18,13 @@ class ProduitFilter {
   ProduitFilter copyWith({
     String? searchQuery,
     String? categoryId,
+    bool clearCategoryId = false,
     bool? showLowStock,
     bool? showExpiringSoon,
   }) {
     return ProduitFilter(
       searchQuery: searchQuery ?? this.searchQuery,
-      categoryId: categoryId ?? this.categoryId,
+      categoryId: clearCategoryId ? null : (categoryId ?? this.categoryId),
       showLowStock: showLowStock ?? this.showLowStock,
       showExpiringSoon: showExpiringSoon ?? this.showExpiringSoon,
     );

@@ -120,6 +120,38 @@ class AuthService {
     }
   }
 
+  Future<Utilisateur?> getCurrentUtilisateur() async {
+    final user = supabase.auth.currentUser;
+    if (user == null) return null;
+
+    try {
+      final profile = await supabase
+          .from('utilisateurs_profil')
+          .select()
+          .eq('id', user.id)
+          .single();
+
+      final pharmacieId = profile['pharmacie_id'] as String;
+
+      final u = Utilisateur(
+        id: user.id,
+        pharmacieId: pharmacieId,
+        email: user.email ?? '',
+        prenom: profile['prenom'] as String? ?? '',
+        nom: profile['nom'] as String,
+        role: profile['role'] as String,
+        derniereConnexion: DateTime.now(),
+      );
+      
+      // Update local cache
+      await _db.into(_db.utilisateurs).insertOnConflictUpdate(u);
+      return u;
+    } catch (e) {
+      debugPrint('getCurrentUtilisateur error: $e');
+      return null;
+    }
+  }
+
   Future<void> logout() async {
     await supabase.auth.signOut();
   }

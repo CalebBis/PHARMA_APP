@@ -327,13 +327,13 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
             DataColumn(label: Text('Total', style: TextStyle(fontWeight: FontWeight.bold))),
           ],
           rows: lignes.map((l) {
-            final double totalLigne = l.produit.prixVente * l.detail.quantite;
+            final double totalLigne = l.detail.prixUnitaire * l.detail.quantite;
             return DataRow(cells: [
               DataCell(Text(l.facture.numeroFacture)),
               DataCell(Text(l.produit.nom)),
               DataCell(Text(dateFormat.format(l.facture.dateEmission))),
               DataCell(Text(l.detail.quantite.toString())),
-              DataCell(Text(CurrencyFormatter.format(l.produit.prixVente))),
+              DataCell(Text(CurrencyFormatter.format(l.detail.prixUnitaire))),
               DataCell(Text(CurrencyFormatter.format(totalLigne))),
             ]);
           }).toList(),

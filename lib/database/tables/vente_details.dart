@@ -10,6 +10,7 @@ class VenteDetails extends Table {
   TextColumn get produitId => text().references(Produits, #id)();
   IntColumn get quantite => integer()();
   RealColumn get prixUnitaire => real()();
+  RealColumn get prixAchat => real().withDefault(const Constant(0.0))();
   RealColumn get sousTotal => real()();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();

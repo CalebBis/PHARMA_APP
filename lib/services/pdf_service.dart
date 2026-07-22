@@ -189,13 +189,13 @@ class PdfService {
               pw.TableHelper.fromTextArray(
                 headers: ['N° de Facture', 'Nom du Produit', 'Date', 'Quantité', 'Prix Unitaire', 'Total'],
                 data: factureLignes.map((l) {
-                  final total = l.produit.prixVente * l.detail.quantite;
+                  final total = l.detail.prixUnitaire * l.detail.quantite;
                   return [
                     l.facture.numeroFacture,
                     l.produit.nom,
                     dateFormat.format(l.facture.dateEmission),
                     l.detail.quantite.toString(),
-                    CurrencyFormatter.format(l.produit.prixVente),
+                    CurrencyFormatter.format(l.detail.prixUnitaire),
                     CurrencyFormatter.format(total),
                   ];
                 }).toList(),

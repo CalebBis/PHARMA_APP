@@ -10,12 +10,14 @@ class ProduitsRepository {
 
   Future<List<Produit>> getTousLesProduits() => (_db.select(_db.produits)
         ..where((t) => t.pharmacieId.equals(_pharmacieId))
-        ..where((t) => t.isDeleted.equals(false)))
+        ..where((t) => t.isDeleted.equals(false))
+        ..orderBy([(t) => OrderingTerm(expression: t.nom.lower(), mode: OrderingMode.asc)]))
       .get();
       
   Stream<List<Produit>> watchTousLesProduits() => (_db.select(_db.produits)
         ..where((t) => t.pharmacieId.equals(_pharmacieId))
-        ..where((t) => t.isDeleted.equals(false)))
+        ..where((t) => t.isDeleted.equals(false))
+        ..orderBy([(t) => OrderingTerm(expression: t.nom.lower(), mode: OrderingMode.asc)]))
       .watch();
 
   Future<int> ajouterProduit(ProduitsCompanion produit) {

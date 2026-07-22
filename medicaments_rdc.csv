@@ -1,0 +1,76 @@
+nom,categorie,prix_achat,prix_vente,stock,seuil_alerte
+Coartem (Artéméther/Luméfantrine),Antipaludéens,3500,5000,40,10
+Artésunate injectable,Antipaludéens,4000,6000,25,5
+Quinine comprimés,Antipaludéens,2000,3000,30,10
+Quinine injectable,Antipaludéens,2500,4000,20,5
+Sulfadoxine-Pyriméthamine (SP),Antipaludéens,1500,2500,30,10
+Amodiaquine,Antipaludéens,1500,2500,25,10
+Artéméther injectable,Antipaludéens,3000,4500,20,5
+Amoxicilline 500mg,Antibiotiques,1500,2500,50,15
+Amoxicilline sirop enfant,Antibiotiques,2000,3500,30,10
+Ampicilline,Antibiotiques,1500,2500,30,10
+Ciprofloxacine 500mg,Antibiotiques,2000,3500,40,10
+Métronidazole (Flagyl),Antibiotiques,1000,2000,50,15
+Cotrimoxazole,Antibiotiques,1000,2000,40,10
+Doxycycline,Antibiotiques,1500,2500,30,10
+Érythromycine,Antibiotiques,2000,3000,20,10
+Gentamicine injectable,Antibiotiques,1500,2500,20,5
+Ceftriaxone injectable,Antibiotiques,3000,5000,25,5
+Azithromycine,Antibiotiques,3500,5500,20,5
+Paracétamol 500mg,Analgésiques & Antipyrétiques,500,1000,100,20
+Paracétamol sirop enfant,Analgésiques & Antipyrétiques,1500,2500,40,15
+Paracétamol suppositoire,Analgésiques & Antipyrétiques,1500,2500,20,10
+Aspirine,Analgésiques & Antipyrétiques,500,1000,50,15
+Ibuprofène 400mg,Analgésiques & Antipyrétiques,1000,2000,50,15
+Diclofénac,Analgésiques & Antipyrétiques,1500,2500,30,10
+Tramadol,Analgésiques & Antipyrétiques,2500,4000,20,5
+Prednisolone,Anti-inflammatoires,1500,2500,25,10
+Dexaméthasone,Anti-inflammatoires,1500,2500,20,10
+Hydrocortisone injectable,Anti-inflammatoires,2000,3500,15,5
+Mébendazole (Vermox),Antiparasitaires,800,1500,40,15
+Albendazole,Antiparasitaires,800,1500,40,15
+Praziquantel,Antiparasitaires,2000,3500,20,10
+Vitamine C,Vitamines & Compléments,500,1000,60,20
+Multivitamines,Vitamines & Compléments,2000,3500,40,15
+Fer + Acide folique,Vitamines & Compléments,1000,2000,50,15
+Vitamine B complexe,Vitamines & Compléments,1500,2500,30,10
+Calcium,Vitamines & Compléments,1500,2500,25,10
+Bétadine (Povidone iodée),Antiseptiques & Matériel médical,2000,3500,25,10
+Eau oxygénée,Antiseptiques & Matériel médical,800,1500,30,10
+Alcool à 90°,Antiseptiques & Matériel médical,1000,2000,30,10
+Sérum physiologique,Antiseptiques & Matériel médical,1000,2000,40,15
+Compresses stériles,Antiseptiques & Matériel médical,500,1200,50,20
+Coton hydrophile,Antiseptiques & Matériel médical,500,1200,40,15
+Permanganate de potassium,Antiseptiques & Matériel médical,800,1500,20,10
+Gants latex (paire),Antiseptiques & Matériel médical,300,800,100,30
+Seringues jetables,Antiseptiques & Matériel médical,300,800,100,30
+Salbutamol (Ventoline) spray,Respiratoire & Antitussifs,4000,6000,15,5
+Sirop antitussif,Respiratoire & Antitussifs,2000,3500,25,10
+Chlorphéniramine,Respiratoire & Antitussifs,500,1000,40,15
+Oméprazole,Digestif & Gastro-entérologie,2000,3500,30,10
+Métoclopramide (Primpéran),Digestif & Gastro-entérologie,1000,2000,30,10
+SRO (Sels de Réhydratation Orale),Digestif & Gastro-entérologie,800,1500,60,20
+Charbon actif,Digestif & Gastro-entérologie,1000,2000,30,10
+Lopéramide,Digestif & Gastro-entérologie,1000,2000,25,10
+Spasfon (Phloroglucinol),Digestif & Gastro-entérologie,1500,2500,25,10
+Captopril,Cardiovasculaire,1500,2500,25,10
+Nifédipine,Cardiovasculaire,1500,2500,20,10
+Méthyldopa,Cardiovasculaire,2000,3500,20,10
+Furosémide,Cardiovasculaire,1000,2000,25,10
+Metformine,Antidiabétiques,1500,2500,30,10
+Glibenclamide,Antidiabétiques,1500,2500,25,10
+Insuline injectable,Antidiabétiques,8000,12000,10,3
+Griséofulvine,Dermatologie,2000,3500,20,10
+Nystatine crème,Dermatologie,1500,2500,20,10
+Clotrimazole crème,Dermatologie,1500,2500,25,10
+Miconazole crème,Dermatologie,1500,2500,20,10
+Bétaméthasone crème,Dermatologie,2000,3000,20,10
+Microgynon (pilule contraceptive),Contraception & Santé reproductive,1500,2500,25,10
+Dépo-Provera injectable,Contraception & Santé reproductive,3000,5000,20,5
+Préservatifs (boîte),Contraception & Santé reproductive,1000,2000,40,15
+Loratadine,Antiallergiques,1000,2000,30,10
+Cétirizine,Antiallergiques,1000,2000,30,10
+Prométhazine,Antiallergiques,1000,2000,25,10
+Sérum glucosé 5%,Solutés & Perfusions,2000,3500,20,5
+Sérum salé 0.9%,Solutés & Perfusions,2000,3500,20,5
+Ringer Lactate,Solutés & Perfusions,2500,4000,15,5
