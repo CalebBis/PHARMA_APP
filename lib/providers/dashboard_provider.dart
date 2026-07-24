@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/database.dart';
 import 'database_provider.dart';
+import '../repositories/ventes_repository.dart';
 
 class DashboardData {
   final double ventesDuJour;
@@ -10,7 +11,7 @@ class DashboardData {
   final String topProduit;
   final int stockBas;
   final List<Map<String, dynamic>> chartData;
-  final List<Vente> ventesRecentes;
+  final List<VenteRecenteDTO> ventesRecentes;
 
   DashboardData({
     required this.ventesDuJour,
@@ -24,7 +25,10 @@ class DashboardData {
   });
 }
 
+final dashboardPeriodProvider = StateProvider<String>((ref) => '7 jours');
+
 final dashboardDataProvider = FutureProvider.autoDispose<DashboardData>((ref) async {
+  final period = ref.watch(dashboardPeriodProvider);
   final ventesRepo = ref.watch(ventesRepositoryProvider);
   final produitsRepo = ref.watch(produitsRepositoryProvider);
 
@@ -35,8 +39,8 @@ final dashboardDataProvider = FutureProvider.autoDispose<DashboardData>((ref) as
   
   final topProduit = await ventesRepo.getTopProduit(7) ?? 'Aucun';
   final stockBas = await produitsRepo.getCompteStockBas();
-  final chartData = await ventesRepo.getVentesParJour(7);
-  final ventesRecentes = await ventesRepo.getVentesRecentes(10);
+  final chartData = await ventesRepo.getChartData(period);
+  final ventesRecentes = await ventesRepo.getVentesRecentesDTO(5);
 
   double tendanceVentes = 0;
   if (ventesVeille > 0) {

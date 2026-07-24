@@ -43,17 +43,6 @@ class DashboardScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                if (onNavigateToVentes != null)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      icon: const Icon(Icons.add_shopping_cart),
-                      label: const Text('Nouvelle Vente'),
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                      onPressed: onNavigateToVentes,
-                    ),
-                  ),
-                const SizedBox(height: 16),
                 
                 // Chart & Recent Sales
                 Row(
@@ -72,7 +61,24 @@ class DashboardScreen extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Ventes des 7 derniers jours', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Ventes des ${ref.watch(dashboardPeriodProvider) == 'Mois' ? '30 derniers jours' : ref.watch(dashboardPeriodProvider) == 'Année' ? '12 derniers mois' : '7 derniers jours'}',
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)
+                                ),
+                                Row(
+                                  children: [
+                                    _buildPeriodButton(context, ref, '7 jours'),
+                                    const SizedBox(width: 4),
+                                    _buildPeriodButton(context, ref, 'Mois'),
+                                    const SizedBox(width: 4),
+                                    _buildPeriodButton(context, ref, 'Année'),
+                                  ],
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: 16),
                             SizedBox(
                               height: 300,
@@ -110,7 +116,7 @@ class DashboardScreen extends ConsumerWidget {
                                   final vente = data.ventesRecentes[index];
                                   return ListTile(
                                     contentPadding: EdgeInsets.zero,
-                                    title: Text(CurrencyFormatter.format(vente.montantTotal), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    title: Text('${vente.description} — ${CurrencyFormatter.format(vente.montantTotal)}', style: const TextStyle(fontWeight: FontWeight.bold)),
                                     subtitle: Text(DateFormat('dd/MM HH:mm').format(vente.dateVente)),
                                     trailing: const Icon(Icons.receipt, color: Colors.green),
                                   );
@@ -183,6 +189,30 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
+  Widget _buildPeriodButton(BuildContext context, WidgetRef ref, String title) {
+    final currentPeriod = ref.watch(dashboardPeriodProvider);
+    final isActive = currentPeriod == title;
+
+    return InkWell(
+      onTap: () => ref.read(dashboardPeriodProvider.notifier).state = title,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.green : Colors.grey.withOpacity(0.2),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: isActive ? Colors.white : Colors.black87,
+            fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+            fontSize: 12,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildChart(List<Map<String, dynamic>> chartData) {
     if (chartData.isEmpty) {
       return const Center(child: Text('Pas assez de données pour le graphique.'));
@@ -246,6 +276,11 @@ class DashboardScreen extends ConsumerWidget {
                     return Padding(
                       padding: const EdgeInsets.only(top: 8.0),
                       child: Text('${parts[2]}/${parts[1]}', style: const TextStyle(fontSize: 10)),
+                    );
+                  } else if (parts.length == 2) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 8.0),
+                      child: Text('${parts[1]}/${parts[0].substring(2)}', style: const TextStyle(fontSize: 10)),
                     );
                   }
                 }

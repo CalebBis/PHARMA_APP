@@ -2,6 +2,18 @@ import 'package:drift/drift.dart';
 import '../database/database.dart';
 import 'package:uuid/uuid.dart';
 
+class VenteRecenteDTO {
+  final double montantTotal;
+  final DateTime dateVente;
+  final String description;
+
+  VenteRecenteDTO({
+    required this.montantTotal,
+    required this.dateVente,
+    required this.description,
+  });
+}
+
 class VentesRepository {
   final AppDatabase _db;
   final String _pharmacieId;
@@ -67,6 +79,29 @@ class VentesRepository {
           ..orderBy([(v) => OrderingTerm(expression: v.dateVente, mode: OrderingMode.desc)])
           ..limit(limit))
         .get();
+  }
+
+  Future<List<VenteRecenteDTO>> getVentesRecentesDTO(int limit) async {
+    final ventes = await getVentesRecentes(limit);
+
+    List<VenteRecenteDTO> result = [];
+    for (var v in ventes) {
+      final details = await (_db.select(_db.venteDetails)..where((d) => d.venteId.equals(v.id))).get();
+      String desc = "";
+      if (details.length == 1) {
+        final produitId = details.first.produitId;
+        final produit = await (_db.select(_db.produits)..where((p) => p.id.equals(produitId))).getSingleOrNull();
+        desc = produit?.nom ?? "Produit inconnu";
+      } else {
+        desc = "${details.length} produits";
+      }
+      result.add(VenteRecenteDTO(
+        montantTotal: v.montantTotal,
+        dateVente: v.dateVente,
+        description: desc,
+      ));
+    }
+    return result;
   }
 
   Future<double> getVentesDuJour() async {
@@ -157,6 +192,42 @@ class VentesRepository {
     
     return result.map((row) => {
       'jour': row.read<String>('jour'),
+      'total': row.read<double>('total'),
+    }).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getChartData(String period) async {
+    String groupBy;
+    DateTime startDate;
+    final now = DateTime.now();
+
+    if (period == '7 jours') {
+      startDate = now.subtract(const Duration(days: 7));
+      groupBy = "DATE(date_vente, 'unixepoch', 'localtime')";
+    } else if (period == 'Mois') {
+      startDate = now.subtract(const Duration(days: 30));
+      groupBy = "DATE(date_vente, 'unixepoch', 'localtime')";
+    } else if (period == 'Année') {
+      startDate = DateTime(now.year - 1, now.month, now.day);
+      groupBy = "STRFTIME('%Y-%m', date_vente, 'unixepoch', 'localtime')";
+    } else {
+      startDate = now.subtract(const Duration(days: 7));
+      groupBy = "DATE(date_vente, 'unixepoch', 'localtime')";
+    }
+
+    final result = await _db.customSelect(
+      '''
+      SELECT $groupBy as periode, SUM(montant_total) as total
+      FROM ventes
+      WHERE date_vente >= ? AND pharmacie_id = ? AND is_deleted = 0
+      GROUP BY periode
+      ORDER BY periode ASC
+      ''',
+      variables: [Variable.withDateTime(startDate), Variable.withString(_pharmacieId)],
+    ).get();
+    
+    return result.map((row) => {
+      'jour': row.read<String>('periode'),
       'total': row.read<double>('total'),
     }).toList();
   }

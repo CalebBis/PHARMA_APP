@@ -77,7 +77,8 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
             labelType: NavigationRailLabelType.none,
             backgroundColor: Colors.green.shade50,
             selectedIconTheme: const IconThemeData(color: Colors.green),
-            selectedLabelTextStyle: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+            selectedLabelTextStyle: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 16),
+            unselectedLabelTextStyle: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
             leading: Padding(
               padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
               child: pharmacieAsync.when(

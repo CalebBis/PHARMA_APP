@@ -7,6 +7,7 @@ import '../services/pdf_service.dart';
 import '../utils/currency_formatter.dart';
 import '../repositories/factures_repository.dart';
 import '../providers/auth_provider.dart';
+import '../utils/invoice_formatter.dart';
 
 enum FilterPeriod {
   journalier,
@@ -329,7 +330,7 @@ class _RapportsScreenState extends ConsumerState<RapportsScreen> {
           rows: lignes.map((l) {
             final double totalLigne = l.detail.prixUnitaire * l.detail.quantite;
             return DataRow(cells: [
-              DataCell(Text(l.facture.numeroFacture)),
+              DataCell(Text(InvoiceFormatter.formatShort(l.facture.dateEmission))),
               DataCell(Text(l.produit.nom)),
               DataCell(Text(dateFormat.format(l.facture.dateEmission))),
               DataCell(Text(l.detail.quantite.toString())),

@@ -5,92 +5,135 @@ import 'package:intl/intl.dart';
 import '../database/database.dart';
 import '../providers/panier_provider.dart';
 import '../utils/currency_formatter.dart';
+import '../utils/invoice_formatter.dart';
 import '../repositories/factures_repository.dart';
 
 class PdfService {
+  static const _sep = '--------------------------------';
+
   static Future<Uint8List> generateInvoicePdf({
     required String factureId,
     required String numeroFacture,
     required Vente vente,
     required List<CartItem> items,
+    String pharmacieNom = 'PHARMACIE POS',
   }) async {
     final pdf = pw.Document();
-    
-    final date = DateFormat('dd/MM/yyyy HH:mm').format(vente.dateVente);
+
+    // Monospace font (Courier) for clean column alignment
+    final monoFont = pw.Font.courier();
+    final monoBold = pw.Font.courierBold();
+
+    final dateStr = DateFormat('dd/MM/yyyy HH:mm').format(vente.dateVente);
+    final numFact = InvoiceFormatter.formatShort(vente.dateVente);
+
+    pw.TextStyle mono(double size, {bool bold = false}) => pw.TextStyle(
+          font: bold ? monoBold : monoFont,
+          fontSize: size,
+        );
+
+    pw.Widget sep() => pw.Text(_sep, style: mono(8));
+
+    // Build product lines
+    final productLines = <pw.Widget>[];
+    for (final item in items) {
+      final nom = item.produit.nom;
+      final qty = item.quantite;
+      final pu = CurrencyFormatter.format(item.produit.prixVente);
+      final sub = CurrencyFormatter.format(item.sousTotal);
+
+      productLines.add(pw.Text(nom, style: mono(9, bold: true)));
+      productLines.add(
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text('$qty x $pu', style: mono(8)),
+            pw.Text(sub, style: mono(8, bold: true)),
+          ],
+        ),
+      );
+      productLines.add(pw.SizedBox(height: 4));
+    }
 
     pdf.addPage(
       pw.Page(
-        pageFormat: PdfPageFormat.a4,
+        // 80mm wide thermal roll, dynamic height
+        pageFormat: PdfPageFormat(
+          80 * PdfPageFormat.mm,
+          double.infinity,
+          marginAll: 4 * PdfPageFormat.mm,
+        ),
         build: (pw.Context context) {
           return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              // Header
+              // ─── HEADER ───
+              pw.Text(
+                pharmacieNom.toUpperCase(),
+                style: mono(11, bold: true),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.SizedBox(height: 6),
+              sep(),
+              pw.SizedBox(height: 4),
+
+              // ─── REÇU / FACTURE ───
+              pw.Text('REÇU DE VENTE', style: mono(10, bold: true), textAlign: pw.TextAlign.center),
+              pw.SizedBox(height: 4),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('N° : $numFact', style: mono(8)),
+              ),
+              pw.Align(
+                alignment: pw.Alignment.centerLeft,
+                child: pw.Text('Date : $dateStr', style: mono(8)),
+              ),
+              pw.SizedBox(height: 4),
+              sep(),
+              pw.SizedBox(height: 6),
+
+              // ─── PRODUITS ───
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: productLines,
+              ),
+              pw.SizedBox(height: 4),
+              sep(),
+              pw.SizedBox(height: 6),
+
+              // ─── TOTAL ───
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.start,
-                    children: [
-                      pw.Text('PHARMACIE POS', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                      pw.Text('123 Rue de la Santé'),
-                      pw.Text('75000 Paris, France'),
-                      pw.Text('Tél : 01 23 45 67 89'),
-                    ],
-                  ),
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text('FACTURE', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold, color: PdfColors.green)),
-                      pw.SizedBox(height: 8),
-                      pw.Text('N° $numeroFacture'),
-                      pw.Text('Date : $date'),
-                    ],
-                  ),
+                  pw.Text('Paiement:', style: mono(8)),
+                  pw.Text(vente.modePaiement, style: mono(8, bold: true)),
                 ],
               ),
-              pw.SizedBox(height: 40),
-              
-              // Table
-              pw.TableHelper.fromTextArray(
-                headers: ['Produit', 'Qté', 'Prix unitaire', 'Sous-total'],
-                data: items.map((item) => [
-                  item.produit.nom,
-                  item.quantite.toString(),
-                  CurrencyFormatter.format(item.produit.prixVente),
-                  CurrencyFormatter.format(item.sousTotal),
-                ]).toList(),
-                headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.green),
-                cellAlignment: pw.Alignment.centerRight,
-                cellAlignments: {
-                  0: pw.Alignment.centerLeft,
-                },
-              ),
-              pw.SizedBox(height: 20),
-              
-              // Totals
+              pw.SizedBox(height: 6),
               pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.end,
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Column(
-                    crossAxisAlignment: pw.CrossAxisAlignment.end,
-                    children: [
-                      pw.Text('Mode de paiement : ${vente.modePaiement}', style: const pw.TextStyle(fontSize: 14)),
-                      pw.SizedBox(height: 8),
-                      pw.Text('TOTAL : ${CurrencyFormatter.format(vente.montantTotal)}', style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                    ],
+                  pw.Text('TOTAL', style: mono(11, bold: true)),
+                  pw.Text(
+                    CurrencyFormatter.format(vente.montantTotal),
+                    style: mono(11, bold: true),
                   ),
                 ],
               ),
-              pw.Spacer(),
-              
-              // Footer
-              pw.Center(
-                child: pw.Text(
-                  'Merci de votre confiance !',
-                  style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey),
-                ),
+              pw.SizedBox(height: 8),
+              sep(),
+              pw.SizedBox(height: 8),
+
+              // ─── FOOTER ───
+              pw.Text(
+                'Merci de votre visite !',
+                style: mono(8),
+                textAlign: pw.TextAlign.center,
+              ),
+              pw.Text(
+                'Bonne santé à vous.',
+                style: mono(8),
+                textAlign: pw.TextAlign.center,
               ),
             ],
           );
@@ -191,7 +234,7 @@ class PdfService {
                 data: factureLignes.map((l) {
                   final total = l.detail.prixUnitaire * l.detail.quantite;
                   return [
-                    l.facture.numeroFacture,
+                    InvoiceFormatter.formatShort(l.facture.dateEmission),
                     l.produit.nom,
                     dateFormat.format(l.facture.dateEmission),
                     l.detail.quantite.toString(),
